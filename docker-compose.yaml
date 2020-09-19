@@ -1,0 +1,23 @@
+version: "3"
+services:
+  plimsoll-test:
+    build: .
+    volumes:
+      - ".:/work"
+    command: yarn docker:run
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_URL=postgresql://plimsoll_user:plimsoll_pass@postgres:5432/plimsoll_db
+      - WAIT_FOR_POSTGRES=true
+  postgres:
+    image: "postgres:${PG_VERSION}-alpine"
+    ports:
+      - 5500:5432
+    environment:
+       - POSTGRES_USER=plimsoll_user
+       - POSTGRES_PASSWORD=plimsoll_pass
+       - POSTGRES_DB=plimsoll_db
+       - PGDATA=/tmp
+    volumes:
+      - "./tmp/postgres/data:/var/lib/postgresql/data/pgdata"
