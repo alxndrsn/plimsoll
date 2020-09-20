@@ -1,0 +1,27 @@
+name: CI Test
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: node:${{ matrix.node-version }}-alpine
+    strategy:
+      matrix:
+        node-version: [lts, 10, 12, 14]
+        postgres-version: [9.5, 9.6, 10, 11, 12]
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres-version }}-alpine
+        env:
+           POSTGRES_USER:     plimsoll_user
+           POSTGRES_PASSWORD: plimsoll_pass
+           POSTGRES_DB:       plimsoll_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+    - uses: actions/checkout@v2
+    - run: yarn && yarn test
+      env:
+        POSTGRES_URL: postgresql://plimsoll_user:plimsoll_pass@postgres:5432/plimsoll_db
