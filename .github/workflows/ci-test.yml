@@ -2,7 +2,7 @@ name: CI Test
 on: [push]
 jobs:
   build:
-    runs-on: alpine-latest
+    runs-on: ubuntu-latest
     container: node:${{ matrix.node-version }}-alpine
     strategy:
       matrix:
