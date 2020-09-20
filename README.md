@@ -2,6 +2,7 @@ Plimsoll
 ========
 
 ![CI Test](https://github.com/alxndrsn/plimsoll/workflows/CI%20Test/badge.svg)
+
 [![NPM](https://nodei.co/npm/plimsoll.png)](https://npmjs.org/package/plimsoll)
 
 Lightweight ORM for using [PostgreSQL](https://www.postgresql.org/) with [Sails.js](https://sailsjs.com/).
