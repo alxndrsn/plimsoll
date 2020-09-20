@@ -12,9 +12,9 @@ jobs:
       postgres:
         image: postgres:${{ matrix.postgres-version }}-alpine
         env:
-         - POSTGRES_USER=plimsoll_user
-         - POSTGRES_PASSWORD=plimsoll_pass
-         - POSTGRES_DB=plimsoll_db
+           POSTGRES_USER:     plimsoll_user
+           POSTGRES_PASSWORD: plimsoll_pass
+           POSTGRES_DB:       plimsoll_db
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
