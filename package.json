@@ -1,5 +1,6 @@
 {
   "name": "plimsoll",
+  "description": "PostgreSQL adapter for Sails.js, drop-in replacement for Waterline",
   "version": "0.1.2",
   "main": "src/sails-hook.js",
   "scripts": {
