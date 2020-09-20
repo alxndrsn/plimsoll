@@ -2,7 +2,7 @@ const { assert } = require('chai');
 
 const sailsHook = require('../src/sails-hook');
 
-describe('sails-hook-entry', () => {
+describe('sails-hook', () => {
   // given
   const pool = {};
   const sails = {
