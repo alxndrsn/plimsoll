@@ -1,0 +1,32 @@
+name: CI Test
+on: [push]
+jobs:
+  build:
+    runs-on: alpine-latest
+    container: node:lts-alpine
+    strategy:
+      matrix:
+        node-version: [10.x, 12.x, 14.x]
+        postgres-version: [9.5, 9.6, 10, 11, 12]
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres-version }}-alpine
+        env:
+         - POSTGRES_USER=plimsoll_user
+         - POSTGRES_PASSWORD=plimsoll_pass
+         - POSTGRES_DB=plimsoll_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: ${{ matrix.node-version }}
+    - run: npm install --global yarn
+    - run: yarn && yarn test
+      env:
+        POSTGRES_URL: postgresql://plimsoll_user:plimsoll_pass@postgres:5432/plimsoll_db
