@@ -1,6 +1,10 @@
 Plimsoll
 ========
 
+[![CI Test](https://github.com/alxndrsn/plimsoll/workflows/CI%20Test/badge.svg)](https://github.com/alxndrsn/plimsoll/actions?query=workflow%3A%22CI+Test%22)
+
+[![NPM](https://nodei.co/npm/plimsoll.png)](https://npmjs.org/package/plimsoll)
+
 Lightweight ORM for using [PostgreSQL](https://www.postgresql.org/) with [Sails.js](https://sailsjs.com/).
 
 This is an **experimental** drop-in replacement for all of the following [Sails.js](https://sailsjs.com/)/[`sails`](https://www.npmjs.com/package/sails) extensions:
