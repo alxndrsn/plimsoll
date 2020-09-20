@@ -22,7 +22,6 @@ jobs:
           --health-retries 5
     steps:
     - uses: actions/checkout@v2
-    - run: npm install --global yarn
     - run: yarn && yarn test
       env:
         POSTGRES_URL: postgresql://plimsoll_user:plimsoll_pass@postgres:5432/plimsoll_db
