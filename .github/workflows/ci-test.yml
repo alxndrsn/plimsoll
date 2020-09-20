@@ -3,10 +3,10 @@ on: [push]
 jobs:
   build:
     runs-on: alpine-latest
-    container: node:lts-alpine
+    container: node:${{ matrix.node-version }}-alpine
     strategy:
       matrix:
-        node-version: [10.x, 12.x, 14.x]
+        node-version: [lts, 10, 12, 14]
         postgres-version: [9.5, 9.6, 10, 11, 12]
     services:
       postgres:
