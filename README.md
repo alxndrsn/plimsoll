@@ -1,7 +1,7 @@
 Plimsoll
 ========
 
-![CI Test](https://github.com/alxndrsn/plimsoll/workflows/CI%20Test/badge.svg)
+[![CI Test](https://github.com/alxndrsn/plimsoll/workflows/CI%20Test/badge.svg)](https://github.com/alxndrsn/plimsoll/actions?query=workflow%3A%22CI+Test%22)
 
 [![NPM](https://nodei.co/npm/plimsoll.png)](https://npmjs.org/package/plimsoll)
 
