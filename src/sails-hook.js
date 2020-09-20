@@ -1,11 +1,12 @@
 const fs = require('fs');
 const path = require('path');
+const pg = require('pg');
 const plimsoll = require('./plimsoll');
 
 module.exports = function(sails) {
   const { config } = sails;
 
-  const { pool } = config.datastores.default;
+  const pool = getPoolFrom(config.datastores.default);
 
   const modelSources = {};
 
@@ -34,3 +35,9 @@ module.exports = function(sails) {
 
   return {};
 };
+
+function getPoolFrom({ pool, url, ...poolConfig }) {
+  if(pool) return pool;
+
+  return new pg.Pool({ connectionString:url, ...poolConfig });
+}

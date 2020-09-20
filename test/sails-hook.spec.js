@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const { assert } = require('chai');
 
 const sailsHook = require('../src/sails-hook');
@@ -68,5 +69,18 @@ describe('sails-hook', () => {
     it('should define transaction()', () => {
       assert.isFunction(datastore.transaction);
     });
+  });
+
+  it('should allow config with sails.config.datastores.default.url', () => {
+    // given
+    const cloned = _.cloneDeep(sails);
+    delete cloned.config.datastores.default.pool;
+    cloned.config.datastores.default.url = 'postgres://example';
+
+    // when
+    sailsHook(cloned);
+
+    // then
+    assert.isOk(cloned.getDatastore().manager.pool);
   });
 });
