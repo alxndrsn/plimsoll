@@ -9,6 +9,20 @@ const esc = {
 
 const NOW = { NOW:'NOW' }; // placeholder for timestamp of statement execution
 
+const NO_OP = (emptyValue, overrides) => {
+  const returnable = {
+    fetch:           () => returnable,
+    intercept:       () => returnable,
+    limit:           () => returnable,
+    populate:        () => returnable,
+    sort:            () => returnable,
+    usingConnection: () => returnable,
+    then: resolve => { resolve(emptyValue); },
+    ...overrides,
+  };
+  return returnable;
+};
+
 module.exports = (pool, models, defaultAttributes={}) => {
   models            = cloneDeep(models);
   defaultAttributes = cloneDeep(defaultAttributes);
@@ -175,15 +189,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
     Model.createEach = propses => {
       propses = propses.map(props => withDefaultValues(Model, props, { creating:true }));
 
-      if(!propses.length) {
-        return {
-          fetch: () => ({
-            usingConnection: () => [],
-            then: resolve => resolve([]),
-          }),
-          usingConnection: () => {},
-        };
-      }
+      if(!propses.length) return NO_OP([]);
 
       // TODO assert that all propses have the same columns.  If not, we'd have
       // to do separate inserts for all of them, which seems like effort to
@@ -231,7 +237,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
           props = withDefaultValues(Model, props);
           const args = [];
           const setQuery = buildSetQuery(Model, props, args);
-          if(!setQuery) return 'TODO';
+          if(!setQuery) return NO_OP([], { fetch:() => Model.find(criteria) });
 
           return sendNativeQuery(`
             UPDATE ${esc.table(Model.tableName)}
@@ -250,7 +256,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
           props = withDefaultValues(Model, props);
           const args = [];
           const setQuery = buildSetQuery(Model, props, args);
-          if(!setQuery) return 'TODO';
+          if(!setQuery) return Model.findOne(criteria);
           return sendNativeQuery(`
             UPDATE ${esc.table(Model.tableName)}
               SET ${setQuery}

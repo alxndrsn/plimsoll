@@ -144,6 +144,22 @@ describe('plimsoll', () => {
           const { rows } = await dbQuery('SELECT * FROM Simple');
           assert.deepEqual(rows, [ { id:1, name:'alice' } ]);
         });
+
+        it('should return instance if requested', async () => {
+          // when
+          const fetched = await Simple.create({ name:'alice' }).fetch();
+
+          // then
+          assert.deepEqual(fetched, { id:1, name:'alice' });
+        });
+
+        it('should support transactions', () => {
+          // when
+          const insert = Simple.create({ name:'alice' });
+
+          // then
+          assert.isFunction(insert.usingConnection);
+        });
       });
 
       describe('for an Audited entity', () => {
@@ -181,6 +197,29 @@ describe('plimsoll', () => {
     });
 
     describe('createEach()', () => {
+      describe('for an empty list', () => {
+        it('should not throw', async () => {
+          // expect
+          await Simple.createEach([]);
+        });
+
+        it('should return a thennable', async () => {
+          // given
+          const creator = Simple.createEach([]);
+
+          // expect
+          assert.isFunction(creator.then);
+        });
+
+        it('should allow transactions', async () => {
+          // given
+          const creator = Simple.createEach([]);
+
+          // expect
+          assert.isFunction(creator.usingConnection);
+        });
+      });
+
       describe('for a Simple entity', () => {
         it('should create multiple instances', async () => {
           // when
@@ -216,9 +255,41 @@ describe('plimsoll', () => {
     });
 
     describe('update()', () => {
-      it('should not throw for an empty object', async () => {
-        // expect
-        await Simple.update('asdf').set({});
+      describe('for an empty update object', () => {
+        it('should not throw', async () => {
+          // expect
+          await Simple.update(-1).set({});
+        });
+
+        it('should be thennable', () => {
+          // given
+          const updater = Simple.update(-1).set({});
+
+          // expect
+          assert.isFunction(updater.then);
+        });
+
+        it('should allow transactions', () => {
+          // given
+          const updater = Simple.update(-1).set({});
+
+          // expect
+          assert.isFunction(updater.usingConnection);
+        });
+
+        it('should return matched values if requested', async () => {
+          // given
+          await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob')`);
+
+          // when
+          const matched = await Simple
+              .update({ name:'alice' })
+              .set({})
+              .fetch();
+
+          // then
+          assert.deepEqual(matched, [ { id:1, name:'alice' } ]);
+        });
       });
 
       it('should update a single row', async () => {
@@ -259,9 +330,40 @@ describe('plimsoll', () => {
     });
 
     describe('updateOne()', () => {
-      it('should not throw for an empty object', async () => {
-        // expect
-        await Simple.updateOne('asdf').set({});
+      describe('for an empty update object', () => {
+        it('should not throw', async () => {
+          // expect
+          await Simple.updateOne(-1).set({});
+        });
+
+        it('should be thennable', () => {
+          // given
+          const updater = Simple.updateOne(-1).set({});
+
+          // expect
+          assert.isFunction(updater.then);
+        });
+
+        it('should allow transactions', () => {
+          // given
+          const updater = Simple.updateOne(-1).set({});
+
+          // expect
+          assert.isFunction(updater.usingConnection);
+        });
+
+        it('should always return matched value', async () => {
+          // given
+          await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob')`);
+
+          // when
+          const matched = await Simple
+              .updateOne({ name:'alice' })
+              .set({});
+
+          // then
+          assert.deepEqual(matched, { id:1, name:'alice' });
+        });
       });
 
       it('should update a single row', async () => {
