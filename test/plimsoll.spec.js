@@ -73,6 +73,7 @@ describe('plimsoll', () => {
       const { models } = plimsoll(pool, {
         Audited: {
           attributes: {
+            name:        { type:'string' },
             created_at:  { type:'number', autoCreatedAt:true },
             inserted_at: { type:'number', autoCreatedAt:true },
             updated_at:  { type:'number', autoUpdatedAt:true },

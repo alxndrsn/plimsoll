@@ -182,6 +182,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
     });
 
     Model.create = props => {
+      props = withoutUnrecognisedProperties(Model, props);
       props = withDefaultValues(Model, props, { creating:true });
 
       const cols = Object.keys(props);
@@ -193,7 +194,9 @@ module.exports = (pool, models, defaultAttributes={}) => {
       `, values, { Model, single:true });
     };
     Model.createEach = propses => {
-      propses = propses.map(props => withDefaultValues(Model, props, { creating:true }));
+      propses = propses
+        .map(props => withoutUnrecognisedProperties(Model, props))
+        .map(props => withDefaultValues(Model, props, { creating:true }));
 
       if(!propses.length) return NO_OP([]);
 
@@ -212,7 +215,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
     Model.destroy    = () => {};
     Model.destroyOne = () => {};
     Model.find       = (options={}) => {
-      const { select, criteria, orderBy, limit } = getFindCriteriaFrom(options);
+      const { select, criteria, orderBy, limit } = getFindCriteriaFrom(Model, options);
       const args = [];
       return sendNativeQuery(`
         SELECT ${select}
@@ -221,7 +224,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
       `, args, { Model, returnRows:true, limit, orderBy });
     };
     Model.findOne = (options={}) => {
-      const { select, criteria, orderBy, limit } = getFindCriteriaFrom(options);
+      const { select, criteria, orderBy, limit } = getFindCriteriaFrom(Model, options);
       const args = [];
       // from: https://dba.stackexchange.com/a/238287
       // TODO check if this truly limits us to one result or not (preferably with a permanent test)
@@ -240,6 +243,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
     Model.update = criteria => {
       return {
         set: props => {
+          props = withoutUnrecognisedProperties(Model, props);
           props = withDefaultValues(Model, props);
           const args = [];
           const setQuery = buildSetQuery(Model, props, args);
@@ -259,6 +263,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
       // It's unclear if this should trigger update of autoUpdatedAt timestamps
       return {
         set: props => {
+          props = withoutUnrecognisedProperties(Model, props);
           props = withDefaultValues(Model, props);
           const args = [];
           const setQuery = buildSetQuery(Model, props, args);
@@ -490,15 +495,18 @@ function withDefaultValues(Model, props, { creating }={}) {
   return props;
 }
 
-function getFindCriteriaFrom(options) {
+function getFindCriteriaFrom(Model, options) {
   let select = '*', criteria, orderBy, limit;
 
   if(Object.keys(options).some(it => ['select'].includes(it))) {
     if(options.select) {
-      select = options.select.map(esc.col).join(', ');
+      select = options.select
+          .filter(k => Model.attributes[k])
+          .map(esc.col)
+          .join(', ');
     }
     if(options.where) {
-      criteria = options.where;
+      criteria = withoutUnrecognisedProperties(Model, options.where);
     }
     if(options.sort) {
       orderBy = options.sort;
@@ -507,8 +515,23 @@ function getFindCriteriaFrom(options) {
       limit = options.limit;
     }
   } else {
-    criteria = options;
+    criteria = withoutUnrecognisedProperties(Model, options);
   }
 
   return { select, criteria, orderBy, limit };
+}
+
+function withoutUnrecognisedProperties(Model, props) {
+  if(typeof props !== 'object') {
+    // probably an ID string or number
+    return props;
+  }
+
+  props = { ...props };
+  Object.keys(props).forEach(k => {
+    if(!Model.attributes[k]) {
+      delete props[k];
+    }
+  });
+  return props;
 }
