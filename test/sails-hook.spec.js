@@ -14,7 +14,7 @@ describe('sails-hook', () => {
       globals: { models:true },
       models: {},
       paths: {
-        models: `${__dirname}/test-models/1`,
+        models: `${__dirname}/test-models`,
       },
     },
   };
@@ -82,5 +82,12 @@ describe('sails-hook', () => {
 
     // then
     assert.isOk(cloned.getDatastore().manager.pool);
+  });
+
+  describe('.attributes', () => {
+    it('should move isIn to .validations sub property', () => {
+      assert.isUndefined(sails.models.Thing.attributes.category.isIn);
+      assert.deepEqual(  sails.models.Thing.attributes.category.validations.isIn, [ 'A', 'B', 'C' ]);
+    });
   });
 });

@@ -174,6 +174,12 @@ module.exports = (pool, models, defaultAttributes={}) => {
     Model.globalId  = name;
     Model.tableName = Model.identity = name.toLowerCase();
     Model.attributes = { ...cloneDeep(defaultAttributes), ...Model.attributes };
+    Object.values(Model.attributes).forEach(cfg => {
+      if(cfg.isIn) {
+        cfg.validations = { isIn:cfg.isIn };
+        delete cfg.isIn;
+      }
+    });
 
     Model.create = props => {
       props = withDefaultValues(Model, props, { creating:true });
