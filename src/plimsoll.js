@@ -36,7 +36,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
 
   function getModelWithName(name) {
     for(const model of Object.values(models)) {
-      if(model.globalId.toLowerCase() === name.toLowerCase()) { // or match tableName?
+      if(model.identity === name.toLowerCase()) { // or match tableName?
         return model;
       }
     }
@@ -172,7 +172,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
 
   function initialiseModel(name, Model) {
     Model.globalId  = name;
-    Model.tableName = name.toLowerCase();
+    Model.tableName = Model.identity = name.toLowerCase();
     Model.attributes = { ...cloneDeep(defaultAttributes), ...Model.attributes };
 
     Model.create = props => {

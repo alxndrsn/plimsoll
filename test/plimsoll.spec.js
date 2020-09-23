@@ -22,7 +22,7 @@ describe('plimsoll', () => {
     assert.isOk(plimsoll);
   });
 
-  it('should add globalId, tableName to Model', () => {
+  it('should add globalId, tableName, identity to Model', () => {
     // given
     const { models } = plimsoll(pool, { Thing:{ attributes:{} } }, {});
 
@@ -30,8 +30,15 @@ describe('plimsoll', () => {
     const { Thing } = models;
 
     // then
-    assert.equal(Thing.globalId,  'Thing');
     assert.equal(Thing.tableName, 'thing');
+
+    // globalId is implied to be the model's filename with /.js$/ removed
+    assert.equal(Thing.globalId,  'Thing');
+
+    // Identity is:
+    // > Case-insensitive, using filename to determine identity.
+    // > - https://github.com/balderdashy/sails-hook-orm/blob/faeaa04065a323e7ae1186e703610a4f0baa4945/lib/load-models-and-custom-adapters.js#L33
+    assert.equal(Thing.identity,  'thing');
   });
 
   describe('sendNativeQuery()', () => {
