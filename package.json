@@ -4,6 +4,7 @@
   "version": "0.1.6",
   "main": "src/sails-hook.js",
   "scripts": {
+    "clean:docker": "docker-compose --log-level ERROR down -v --rmi local --remove-orphans",
     "docker:run": "yarn && yarn test",
     "lint": "eslint .",
     "test": "yarn lint && yarn test:mocha",
@@ -12,7 +13,7 @@
     "test:docker:pg10": " PG_VERSION=10  docker-compose run plimsoll-test",
     "test:docker:pg11": " PG_VERSION=11  docker-compose run plimsoll-test",
     "test:docker:pg12": " PG_VERSION=12  docker-compose run plimsoll-test",
-    "test:docker": "yarn test:docker:pg9.5 && yarn test:docker:pg9.6 && yarn test:docker:pg10 && yarn test:docker:pg11 && yarn test:docker:pg12",
+    "test:docker": "yarn test:docker:pg9.5 && yarn test:docker:pg9.6 && yarn test:docker:pg10 && yarn test:docker:pg11 && yarn test:docker:pg12 && yarn clean:docker",
     "test:mocha": "mocha test/mocha-setup.js test/**/*.spec.js"
   },
   "dependencies": {
