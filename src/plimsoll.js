@@ -8,6 +8,7 @@ const esc = {
 };
 
 const NOW = { NOW:'NOW' }; // placeholder for timestamp of statement execution
+const POPULATE_MARKER = '!!POPULATE!!';
 
 const NO_OP = (emptyValue, overrides) => {
   const returnable = {
@@ -61,7 +62,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
     }
   }
 
-  function sendNativeQuery(sql, args, opts) {
+  function sendNativeQuery(_sql, args, opts) {
     opts = { ...opts, intercepters:{} };
 
     const returnable = { fetch, intercept, limit, populate, sort, then, usingConnection };
@@ -104,6 +105,27 @@ module.exports = (pool, models, defaultAttributes={}) => {
     }
 
     async function then(resolve, reject) {
+      let sql;
+      if(typeof _sql === 'string') sql = _sql;
+      else {
+        if(!Array.isArray(_sql) || _sql.length !== 3 ||
+            _sql[1] !== POPULATE_MARKER ||
+            typeof _sql[0] !== 'string' || typeof _sql[2] !== 'string') {
+          throw new Error();
+        }
+        if(opts.populate) {
+          const populateModel = getModelWithName(opts.Model.attributes[opts.populate].model);
+          const populateCols = Object.keys(populateModel.attributes).map(esc.col).join(',')
+          sql = _sql[0] +
+              `, (SELECT TO_JSON(ROW(${populateCols})::${esc.table(populateModel.tableName)})
+                    FROM ${esc.table(populateModel.tableName)} 
+                    WHERE ${esc.table(populateModel.tableName)}.id=${esc.col(opts.populate)}) AS ${esc.col(opts.populate)} ` +
+              _sql[2];
+        } else {
+          sql = `${_sql[0]} ${_sql[2]}`;
+        }
+      }
+
       if(opts.fetch) {
         sql += ' RETURNING *';
       }
@@ -120,34 +142,34 @@ module.exports = (pool, models, defaultAttributes={}) => {
       let client;
       try {
         client = opts.client || await pool.connect();
+console.log('SQL:', sql);
         const result = await client.query(sql, args);
 
         if(opts.returnSingleRow || (opts.fetch && opts.single)) {
           const ret = withSelectedValuesCast(opts.Model, result.rows[0]);
 
-          if(opts.populate) {
-            // It would be neat if we could use a subquery to get the populated property as a
-            // composite value, and then process with withSelectedValuesCast(), but it looks
-            // like this is tricky: https://github.com/brianc/node-postgres/issues/1801#issuecomment-533894462
-            const populateModel = getModelWithName(opts.Model.attributes[opts.populate].model);
-            const sql = `SELECT * FROM ${esc.table(populateModel.tableName)} WHERE id=$1`;
-            const { rows } = await client.query(sql, [ ret[opts.populate] ]);
-            ret[opts.populate] = withSelectedValuesCast(populateModel, rows[0]);
-          }
+// TODO withSelectedValuesCast() here
+//          if(opts.populate) {
+//            const populateModel = getModelWithName(opts.Model.attributes[opts.populate].model);
+//            const sql = `SELECT * FROM ${esc.table(populateModel.tableName)} WHERE id=$1`;
+//            const { rows } = await client.query(sql, [ ret[opts.populate] ]);
+//            ret[opts.populate] = withSelectedValuesCast(populateModel, rows[0]);
+//          }
 
           resolve(ret);
         } else if(opts.returnRows || opts.fetch) {
           const ret = result.rows.map(row => withSelectedValuesCast(opts.Model, row));
 
-          if(opts.populate) {
-            const populateModel = getModelWithName(opts.Model.attributes[opts.populate].model);
-            const populateIds = ret.map(r => r[opts.populate]);
-            const sql = `SELECT * FROM ${esc.table(populateModel.tableName)} WHERE id=ANY($1)`;
-            const { rows } = await client.query(sql, [ populateIds ]);
-            ret.forEach(r => {
-              r[opts.populate] = withSelectedValuesCast(populateModel, rows.find(({ id }) => r[opts.populate] === id));
-            });
-          }
+// TODO withSelectedValuesCast() here
+//          if(opts.populate) {
+//            const populateModel = getModelWithName(opts.Model.attributes[opts.populate].model);
+//            const populateIds = ret.map(r => r[opts.populate]);
+//            const sql = `SELECT * FROM ${esc.table(populateModel.tableName)} WHERE id=ANY($1)`;
+//            const { rows } = await client.query(sql, [ populateIds ]);
+//            ret.forEach(r => {
+//              r[opts.populate] = withSelectedValuesCast(populateModel, rows.find(({ id }) => r[opts.populate] === id));
+//            });
+//          }
 
           resolve(ret);
         } else {
@@ -220,11 +242,12 @@ module.exports = (pool, models, defaultAttributes={}) => {
     Model.find       = (options={}) => {
       const { select, criteria, orderBy, limit } = getFindCriteriaFrom(Model, options);
       const args = [];
-      return sendNativeQuery(`
-        SELECT ${select}
-          FROM ${esc.table(Model.tableName)}
-          ${buildWhereQuery(criteria, args)}
-      `, args, { Model, returnRows:true, limit, orderBy });
+      return sendNativeQuery([
+        `SELECT ${select}`,
+        POPULATE_MARKER,
+        `  FROM ${esc.table(Model.tableName)}
+           ${buildWhereQuery(criteria, args)}`,
+      ], args, { Model, returnRows:true, limit, orderBy });
     };
     Model.findOne = (options={}) => {
       const { select, criteria, orderBy, limit } = getFindCriteriaFrom(Model, options);

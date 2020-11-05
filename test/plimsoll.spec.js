@@ -159,7 +159,7 @@ describe('plimsoll', () => {
             [
               { id:1, name:'alice_owner',  my_simple:{ id:1, name:'alice' } },
               { id:2, name:'bob_owner',    my_simple:{ id:2, name:'bob'   } },
-              { id:3, name:'owns_nothing', my_simple:undefined },
+              { id:3, name:'owns_nothing', my_simple:null },
             ]);
       });
     });
