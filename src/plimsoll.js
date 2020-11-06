@@ -126,6 +126,9 @@ module.exports = (pool, models, defaultAttributes={}) => {
           const ret = withSelectedValuesCast(opts.Model, result.rows[0]);
 
           if(opts.populate) {
+            // It would be neat if we could use a subquery to get the populated property as a
+            // composite value, and then process with withSelectedValuesCast(), but it looks
+            // like this is tricky: https://github.com/brianc/node-postgres/issues/1801#issuecomment-533894462
             const populateModel = getModelWithName(opts.Model.attributes[opts.populate].model);
             const sql = `SELECT * FROM ${esc.table(populateModel.tableName)} WHERE id=$1`;
             const { rows } = await client.query(sql, [ ret[opts.populate] ]);
