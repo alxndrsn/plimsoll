@@ -73,6 +73,7 @@ describe('plimsoll', () => {
       const { models } = plimsoll(pool, {
         Audited: {
           attributes: {
+            id:          { type:'number', autoIncrement:true },
             name:        { type:'string' },
             created_at:  { type:'number', autoCreatedAt:true },
             inserted_at: { type:'number', autoCreatedAt:true },
@@ -80,9 +81,15 @@ describe('plimsoll', () => {
             _set_at:     { type:'number', autoUpdatedAt:true },
           },
         },
-        Simple: { attributes: { name:{ type:'string' } } },
+        Simple: {
+          attributes: {
+            id:   { type:'number', autoIncrement:true },
+            name: { type:'string' },
+          },
+        },
         WithDefaults: {
           attributes: {
+            id:         { type:'number', autoIncrement:true },
             str_no_def: { type:'string' },
             str_def:    { type:'string', defaultsTo:'val' },
             num_no_def: { type:'number' },

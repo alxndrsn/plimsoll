@@ -469,14 +469,14 @@ function withDefaultValues(Model, props, { creating }={}) {
         }
         // FIXME this check doesn't look quite correct for autoUpdatedAt attributes which are undefined here
         if((creating && props[attr] === undefined) || props[attr] === null) {
-          const { allowNull, type, autoCreatedAt, autoUpdatedAt } = cfg;
+          const { allowNull, type, autoCreatedAt, autoUpdatedAt, autoIncrement } = cfg;
           if(autoCreatedAt) {
             if(creating) {
               props[attr] = NOW;
             }
           } else if(autoUpdatedAt) {
             props[attr] = NOW;
-          } else if(!allowNull) {
+          } else if(!allowNull && !autoIncrement) {
             // > The string, number, and boolean data types do not accept null as a value when creating or updating
             // > records. In order to allow a null value to be set, you can toggle the allowNull flag on the
             // > attribute. Note that the allowNull flag is only valid on the data types listed above. It is not
