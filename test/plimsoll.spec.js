@@ -167,6 +167,25 @@ describe('plimsoll', () => {
               { id:3, name:'owns_nothing', my_simple:null,                   my_with_defaults:null },
             ]);
       });
+
+      it('should support model relationships with populate() with default values', async () => {
+        // given
+        await dbQuery(`INSERT INTO WithDefaults (str_no_def, str_def, num_no_def, num_def) VALUES
+                                                (NULL, 'a',   NULL, 11),
+                                                ('bob', NULL, 22,   NULL)`);
+        await dbQuery(`INSERT INTO WithRelationships (name, my_simple, my_with_defaults) VALUES
+                                                     ('def_owner',    NULL, 1),
+                                                     ('no_def_owner', NULL, 2),
+                                                     ('owns_nothing', NULL, NULL)`);
+
+        // expect
+        assert.deepEqual(await WithRelationships.find().populate('my_with_defaults'),
+            [
+              { id:1, name:'def_owner',    my_simple:null, my_with_defaults:{ id:1, str_no_def:'',    str_def:'a',   num_no_def: 0, num_def:11 } },
+              { id:2, name:'no_def_owner', my_simple:null, my_with_defaults:{ id:2, str_no_def:'bob', str_def:'val', num_no_def:22, num_def:77 } },
+              { id:3, name:'owns_nothing', my_simple:null, my_with_defaults:null },
+            ]);
+      });
     });
 
     describe('findOne()', () => {
@@ -221,6 +240,25 @@ describe('plimsoll', () => {
             { id:2, name:'alice_owner',   my_simple:{ id:1, name:'alice' }, my_with_defaults:null });
         assert.deepEqual(await WithRelationships.findOne(3).populate('my_simple'),
             { id:3, name:'owns_nothing',  my_simple:null,                   my_with_defaults:null });
+      });
+
+      it('should support model relationships with populate() with default values', async () => {
+        // given
+        await dbQuery(`INSERT INTO WithDefaults (str_no_def, str_def, num_no_def, num_def) VALUES
+                                                (NULL, 'a',   NULL, 11),
+                                                ('bob', NULL, 22,   NULL)`);
+        await dbQuery(`INSERT INTO WithRelationships (name, my_simple, my_with_defaults) VALUES
+                                                     ('def_owner',    NULL, 1),
+                                                     ('no_def_owner', NULL, 2),
+                                                     ('owns_nothing', NULL, NULL)`);
+
+        // expect
+        assert.deepEqual(await WithRelationships.findOne(1).populate('my_with_defaults'),
+              { id:1, name:'def_owner',    my_simple:null, my_with_defaults:{ id:1, str_no_def:'',    str_def:'a',   num_no_def: 0, num_def:11 } });
+        assert.deepEqual(await WithRelationships.findOne(2).populate('my_with_defaults'),
+              { id:2, name:'no_def_owner', my_simple:null, my_with_defaults:{ id:2, str_no_def:'bob', str_def:'val', num_no_def:22, num_def:77 } });
+        assert.deepEqual(await WithRelationships.findOne(3).populate('my_with_defaults'),
+              { id:3, name:'owns_nothing', my_simple:null, my_with_defaults:null });
       });
     });
 

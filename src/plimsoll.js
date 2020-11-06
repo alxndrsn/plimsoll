@@ -148,28 +148,28 @@ console.log('SQL:', sql);
         if(opts.returnSingleRow || (opts.fetch && opts.single)) {
           const ret = withSelectedValuesCast(opts.Model, result.rows[0]);
 
-// TODO withSelectedValuesCast() here
-//          if(opts.populate) {
-//            const populateModel = getModelWithName(opts.Model.attributes[opts.populate].model);
-//            const sql = `SELECT * FROM ${esc.table(populateModel.tableName)} WHERE id=$1`;
-//            const { rows } = await client.query(sql, [ ret[opts.populate] ]);
-//            ret[opts.populate] = withSelectedValuesCast(populateModel, rows[0]);
-//          }
+          if(opts.populate) {
+            const populateModel = getModelWithName(opts.Model.attributes[opts.populate].model);
+            ret[opts.populate] = withDefaultValues(populateModel, ret[opts.populate], { creating:true }); // TODO this is obviously not "creating"; perhaps this just needs a better name?  Or maybe there are cases where this is a really bad idea.  Even more likely, we're missing simple tests for defaultValues unset in the db.
+            ret[opts.populate] = withSelectedValuesCast(populateModel, ret[opts.populate]);
+          }
 
           resolve(ret);
         } else if(opts.returnRows || opts.fetch) {
           const ret = result.rows.map(row => withSelectedValuesCast(opts.Model, row));
 
 // TODO withSelectedValuesCast() here
-//          if(opts.populate) {
-//            const populateModel = getModelWithName(opts.Model.attributes[opts.populate].model);
+          if(opts.populate) {
+            const populateModel = getModelWithName(opts.Model.attributes[opts.populate].model);
 //            const populateIds = ret.map(r => r[opts.populate]);
 //            const sql = `SELECT * FROM ${esc.table(populateModel.tableName)} WHERE id=ANY($1)`;
 //            const { rows } = await client.query(sql, [ populateIds ]);
-//            ret.forEach(r => {
+            ret.forEach(r => {
 //              r[opts.populate] = withSelectedValuesCast(populateModel, rows.find(({ id }) => r[opts.populate] === id));
-//            });
-//          }
+              r[opts.populate] = withDefaultValues(populateModel, r[opts.populate], { creating:true }); // TODO this is obviously not "creating"; perhaps this just needs a better name?  Or maybe there are cases where this is a really bad idea.  Even more likely, we're missing simple tests for defaultValues unset in the db.
+              r[opts.populate] = withSelectedValuesCast(populateModel, r[opts.populate]);
+            });
+          }
 
           resolve(ret);
         } else {
@@ -460,8 +460,8 @@ function withSelectedValuesCast(Model, row) {
 
     Object.entries(row)
       .forEach(([ k, v ]) => {
+        const { allowNull, type } = Model.attributes[k];
         if(v === undefined || v === null) {
-          const { allowNull, type } = Model.attributes[k];
           if(!allowNull) {
             // > The string, number, and boolean data types do not accept null as a value when creating or updating
             // > records. In order to allow a null value to be set, you can toggle the allowNull flag on the
@@ -474,6 +474,10 @@ function withSelectedValuesCast(Model, row) {
               case 'boolean': row[k] = false; break;
             }
           }
+        } else {
+          switch(type) {
+            case 'number': row[k] = Number(row[k]); break;
+          }
         }
       });
   }
@@ -481,6 +485,8 @@ function withSelectedValuesCast(Model, row) {
   return row;
 }
 
+// TODO this should _either_ be mutating props, _or_ returning it; currently it
+// does both, and this makes the intended usage ambiguous
 function withDefaultValues(Model, props, { creating }={}) {
   if(!Model) {
     throw new Error('No model supplied!  ' + JSON.stringify(props, null, 2));
@@ -488,7 +494,7 @@ function withDefaultValues(Model, props, { creating }={}) {
   if(props) {
     Object.entries(Model.attributes)
       .forEach(([ attr, cfg ]) => {
-        if(creating && props[attr] === undefined) {
+        if(creating && props[attr] == null) {
           const { defaultsTo } = cfg;
           if(defaultsTo !== undefined) {
             props[attr] = cloneDeep(defaultsTo);
