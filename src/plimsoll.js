@@ -256,15 +256,16 @@ console.log('SQL:', sql);
       // TODO check if this truly limits us to one result or not (preferably with a permanent test)
       // TODO optimise this when only ID is supplied
       // TODO optimise this when only a single unique column is supplied (like ID case, but more general)
-      return sendNativeQuery(`
-        SELECT ${select}
-          FROM ${esc.table(Model.tableName)}
-          WHERE id = (
-            SELECT id
-              FROM ${esc.table(Model.tableName)}
-              ${buildWhereQuery(criteria, args)}
-          )
-      `, args, { Model, returnSingleRow:true, limit, orderBy });
+      return sendNativeQuery([
+        `SELECT ${select}`,
+        POPULATE_MARKER,
+        `  FROM ${esc.table(Model.tableName)}
+           WHERE id = (
+             SELECT id
+               FROM ${esc.table(Model.tableName)}
+               ${buildWhereQuery(criteria, args)}
+           )`,
+      ], args, { Model, returnSingleRow:true, limit, orderBy });
     };
     Model.update = criteria => {
       return {

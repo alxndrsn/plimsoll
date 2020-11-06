@@ -188,6 +188,26 @@ describe('plimsoll', () => {
           assert.equal(err.code, 21000) // "more than one row returned by a subquery used as an expression"
         }
       });
+
+      it('should support model relationships without populate()', async () => {
+        // given
+        await dbQuery(`INSERT INTO WithRelationship (name, my_simple) VALUES ('bob_owner', 2), ('alice_owner', 1), ('owns_nothing', NULL)`);
+
+        // expect
+        assert.deepEqual(await WithRelationship.findOne(1), { id:1, name:'bob_owner',    my_simple:2 });
+        assert.deepEqual(await WithRelationship.findOne(2), { id:2, name:'alice_owner',  my_simple:1 });
+        assert.deepEqual(await WithRelationship.findOne(3), { id:3, name:'owns_nothing', my_simple:null });
+      });
+
+      it('should support model relationships with populate()', async () => {
+        // given
+        await dbQuery(`INSERT INTO WithRelationship (name, my_simple) VALUES ('bob_owner', 2), ('alice_owner', 1), ('owns_nothing', NULL)`);
+
+        // expect
+        assert.deepEqual(await WithRelationship.findOne(1).populate('my_simple'), { id:1, name:'bob_owner',    my_simple:{ id:2, name:'bob'   } });
+        assert.deepEqual(await WithRelationship.findOne(2).populate('my_simple'), { id:2, name:'alice_owner',  my_simple:{ id:1, name:'alice' } });
+        assert.deepEqual(await WithRelationship.findOne(3).populate('my_simple'), { id:3, name:'owns_nothing', my_simple:null });
+      });
     });
 
     describe('create()', () => {
