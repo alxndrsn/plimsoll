@@ -58,7 +58,7 @@ describe('plimsoll', () => {
   });
 
   describe('Model-based queries', () => {
-    let Audited, Simple, WithDefaults, WithRelationship;
+    let Audited, Simple, WithDefaults, WithRelationships;
 
     beforeEach(async () => {
       await dbQuery('DROP TABLE IF EXISTS Simple');
@@ -70,8 +70,8 @@ describe('plimsoll', () => {
       await dbQuery('DROP TABLE IF EXISTS WithDefaults');
       await dbQuery(`CREATE TABLE WithDefaults ( id SERIAL, str_no_def TEXT, str_def TEXT, num_no_def INT, num_def INT )`);
 
-      await dbQuery('DROP TABLE IF EXISTS WithRelationship');
-      await dbQuery(`CREATE TABLE WithRelationship ( id SERIAL, name TEXT, my_simple INT )`);
+      await dbQuery('DROP TABLE IF EXISTS WithRelationships');
+      await dbQuery(`CREATE TABLE WithRelationships ( id SERIAL, name TEXT, my_simple INT, my_with_defaults INT )`);
 
       const { models } = plimsoll(pool, {
         Audited: {
@@ -99,19 +99,20 @@ describe('plimsoll', () => {
             num_def:    { type:'number', defaultsTo:'77' },
           },
         },
-        WithRelationship: {
+        WithRelationships: {
           attributes: {
-            id:        { type:'number', autoIncrement:true },
-            name:      { type:'string' },
-            my_simple: { model:'Simple' },
+            id:               { type:'number', autoIncrement:true },
+            name:             { type:'string' },
+            my_simple:        { model:'Simple' },
+            my_with_defaults: { model:'WithDefaults' },
           },
         },
       });
 
-      Audited          = models.Audited;
-      Simple           = models.Simple;
-      WithDefaults     = models.WithDefaults;
-      WithRelationship = models.WithRelationship;
+      Audited           = models.Audited;
+      Simple            = models.Simple;
+      WithDefaults      = models.WithDefaults;
+      WithRelationships = models.WithRelationships;
     });
 
     describe('find()', () => {
@@ -136,37 +137,41 @@ describe('plimsoll', () => {
       it('should support model relationships without populate()', async () => {
         // given
         await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob')`);
-        await dbQuery(`INSERT INTO WithRelationship (name, my_simple) VALUES ('alice_owner', 1), ('bob_owner', 2), ('owns_nothing', NULL)`);
+        await dbQuery(`INSERT INTO WithRelationships (name, my_simple) VALUES
+                                                     ('alice_owner',  1),
+                                                     ('bob_owner',    2),
+                                                     ('owns_nothing', NULL)`);
 
         // expect
-        assert.deepEqual(await Simple.find(), [ { id:1, name:'alice' }, { id:2, name:'bob' } ]);
-        assert.deepEqual(await WithRelationship.find(),
+        assert.deepEqual(await WithRelationships.find(),
             [
-              { id:1, name:'alice_owner',  my_simple:1 },
-              { id:2, name:'bob_owner',    my_simple:2 },
-              { id:3, name:'owns_nothing', my_simple:null },
+              { id:1, name:'alice_owner',  my_simple:1,    my_with_defaults:null },
+              { id:2, name:'bob_owner',    my_simple:2,    my_with_defaults:null },
+              { id:3, name:'owns_nothing', my_simple:null, my_with_defaults:null },
             ]);
       });
 
       it('should support model relationships with populate()', async () => {
         // given
         await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob')`);
-        await dbQuery(`INSERT INTO WithRelationship (name, my_simple) VALUES ('alice_owner', 1), ('bob_owner', 2), ('owns_nothing', NULL)`);
+        await dbQuery(`INSERT INTO WithRelationships (name, my_simple) VALUES
+                                                     ('alice_owner',  1),
+                                                     ('bob_owner',    2),
+                                                     ('owns_nothing', NULL)`);
 
         // expect
-        assert.deepEqual(await Simple.find(), [ { id:1, name:'alice' }, { id:2, name:'bob' } ]);
-        assert.deepEqual(await WithRelationship.find().populate('my_simple'),
+        assert.deepEqual(await WithRelationships.find().populate('my_simple'),
             [
-              { id:1, name:'alice_owner',  my_simple:{ id:1, name:'alice' } },
-              { id:2, name:'bob_owner',    my_simple:{ id:2, name:'bob'   } },
-              { id:3, name:'owns_nothing', my_simple:null },
+              { id:1, name:'alice_owner',  my_simple:{ id:1, name:'alice' }, my_with_defaults:null },
+              { id:2, name:'bob_owner',    my_simple:{ id:2, name:'bob'   }, my_with_defaults:null },
+              { id:3, name:'owns_nothing', my_simple:null,                   my_with_defaults:null },
             ]);
       });
     });
 
     describe('findOne()', () => {
       beforeEach(async () => {
-        await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob'), ('bob')`);
+        await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob'), ('bob'), (NULL)`);
       });
 
       it('should return undefined if no match', async () => {
@@ -191,22 +196,31 @@ describe('plimsoll', () => {
 
       it('should support model relationships without populate()', async () => {
         // given
-        await dbQuery(`INSERT INTO WithRelationship (name, my_simple) VALUES ('bob_owner', 2), ('alice_owner', 1), ('owns_nothing', NULL)`);
+        await dbQuery(`INSERT INTO WithRelationships (name, my_simple) VALUES
+                                                     ('bob_owner',    2),
+                                                     ('alice_owner',  1),
+                                                     ('owns_nothing', NULL)`);
 
         // expect
-        assert.deepEqual(await WithRelationship.findOne(1), { id:1, name:'bob_owner',    my_simple:2 });
-        assert.deepEqual(await WithRelationship.findOne(2), { id:2, name:'alice_owner',  my_simple:1 });
-        assert.deepEqual(await WithRelationship.findOne(3), { id:3, name:'owns_nothing', my_simple:null });
+        assert.deepEqual(await WithRelationships.findOne(1), { id:1, name:'bob_owner',     my_simple:2,    my_with_defaults:null });
+        assert.deepEqual(await WithRelationships.findOne(2), { id:2, name:'alice_owner',   my_simple:1,    my_with_defaults:null });
+        assert.deepEqual(await WithRelationships.findOne(3), { id:3, name:'owns_nothing',  my_simple:null, my_with_defaults:null });
       });
 
       it('should support model relationships with populate()', async () => {
         // given
-        await dbQuery(`INSERT INTO WithRelationship (name, my_simple) VALUES ('bob_owner', 2), ('alice_owner', 1), ('owns_nothing', NULL)`);
+        await dbQuery(`INSERT INTO WithRelationships (name, my_simple) VALUES
+                                                     ('bob_owner',    2),
+                                                     ('alice_owner',  1),
+                                                     ('owns_nothing', NULL)`);
 
         // expect
-        assert.deepEqual(await WithRelationship.findOne(1).populate('my_simple'), { id:1, name:'bob_owner',    my_simple:{ id:2, name:'bob'   } });
-        assert.deepEqual(await WithRelationship.findOne(2).populate('my_simple'), { id:2, name:'alice_owner',  my_simple:{ id:1, name:'alice' } });
-        assert.deepEqual(await WithRelationship.findOne(3).populate('my_simple'), { id:3, name:'owns_nothing', my_simple:null });
+        assert.deepEqual(await WithRelationships.findOne(1).populate('my_simple'),
+            { id:1, name:'bob_owner',     my_simple:{ id:2, name:'bob'   }, my_with_defaults:null });
+        assert.deepEqual(await WithRelationships.findOne(2).populate('my_simple'),
+            { id:2, name:'alice_owner',   my_simple:{ id:1, name:'alice' }, my_with_defaults:null });
+        assert.deepEqual(await WithRelationships.findOne(3).populate('my_simple'),
+            { id:3, name:'owns_nothing',  my_simple:null,                   my_with_defaults:null });
       });
     });
 
