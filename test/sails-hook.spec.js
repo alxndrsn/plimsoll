@@ -31,15 +31,15 @@ describe('sails-hook', () => {
   });
 
   it('should add configured models to sails', () => {
-    assert.equal(sails.models.Thing.load_proof, 'random-313');
-    assert.equal(sails.models.Thing.globalId,   'Thing');
-    assert.equal(sails.models.Thing.tableName,  'thing');
+    assert.equal(sails.models.thing.load_proof, 'random-313');
+    assert.equal(sails.models.thing.globalId,   'Thing');
+    assert.equal(sails.models.thing.tableName,  'thing');
   });
 
-  it('should add models to global scope', () => {
-    Object.entries(sails.models)
-      .forEach(([ name, model ]) => {
-        assert.equal(global[name], model);
+  it('should add models to global scope, correctly capitalised', () => {
+    Object.values(sails.models)
+      .forEach(model => {
+        assert.equal(global[model.globalId], model);
       });
   });
 
@@ -86,8 +86,8 @@ describe('sails-hook', () => {
 
   describe('.attributes', () => {
     it('should move isIn to .validations sub property', () => {
-      assert.isUndefined(sails.models.Thing.attributes.category.isIn);
-      assert.deepEqual(  sails.models.Thing.attributes.category.validations.isIn, [ 'A', 'B', 'C' ]);
+      assert.isUndefined(sails.models.thing.attributes.category.isIn);
+      assert.deepEqual(  sails.models.thing.attributes.category.validations.isIn, [ 'A', 'B', 'C' ]);
     });
   });
 });

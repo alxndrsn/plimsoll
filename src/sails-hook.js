@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const pg = require('pg');
+
 const plimsoll = require('./plimsoll');
 
 module.exports = function(sails) {
@@ -19,13 +20,22 @@ module.exports = function(sails) {
 
   const { models, sendNativeQuery, transaction } = plimsoll(pool, modelSources, config.models.attributes);
 
-  sails.models = models;
+  const sailsModels = {};
+  Object
+    .entries(models)
+    .forEach(([ name, model ]) => {
+      const sailsName = name.toLowerCase();
+      if(sailsModels[sailsName]) throw new Error(`Model name collision: ${sailsName}`);
+      sailsModels[sailsName] = model;
+    });
+
+  sails.models = sailsModels;
   sails.sendNativeQuery = sendNativeQuery;
 
   if(config.globals.models) {
-    Object.entries(models)
-      .forEach(([ modelName, model ]) => {
-        global[modelName] = model;
+    Object.values(models)
+      .forEach(model => {
+        global[model.globalId] = model;
       });
   }
 
