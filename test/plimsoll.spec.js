@@ -61,16 +61,15 @@ describe('plimsoll', () => {
     let Audited, Simple, WithDefaults, WithRelationship;
 
     beforeEach(async () => {
-      await dbQuery('DROP TABLE IF EXISTS Simple');
+      await dbQuery('DROP SCHEMA IF EXISTS public CASCADE');
+      await dbQuery('CREATE SCHEMA public');
+
       await dbQuery(`CREATE TABLE Simple ( id SERIAL, name TEXT )`);
 
-      await dbQuery('DROP TABLE IF EXISTS Audited');
       await dbQuery(`CREATE TABLE Audited ( id SERIAL, name TEXT, created_at BIGINT, inserted_at BIGINT, updated_at BIGINT, _set_at BIGINT )`);
 
-      await dbQuery('DROP TABLE IF EXISTS WithDefaults');
       await dbQuery(`CREATE TABLE WithDefaults ( id SERIAL, str_no_def TEXT, str_def TEXT, num_no_def INT, num_def INT )`);
 
-      await dbQuery('DROP TABLE IF EXISTS WithRelationship');
       await dbQuery(`CREATE TABLE WithRelationship ( id SERIAL, name TEXT, my_simple INT )`);
 
       const { models } = plimsoll(pool, {
@@ -459,6 +458,91 @@ describe('plimsoll', () => {
         const { rows } = await dbQuery('SELECT * FROM WithDefaults ORDER BY id');
         assert.deepEqual(rows, [ { id:1, str_no_def:'c', str_def:'b', num_no_def:1, num_def:2 } ]);
       });
+    });
+
+  });
+
+  describe('Model-based queries with schemaName provided in meta()', () => {
+    const schemaName = 'my_schema';
+
+    let Simple;
+
+    beforeEach(async () => {
+      await dbQuery('DROP SCHEMA IF EXISTS public    CASCADE');
+      await dbQuery('DROP SCHEMA IF EXISTS my_schema CASCADE');
+      await dbQuery('CREATE SCHEMA my_schema');
+      await dbQuery(`CREATE TABLE  my_schema.Simple ( id SERIAL, name TEXT )`);
+      await dbQuery(`INSERT INTO   my_schema.Simple (name) VALUES ('alice'), ('bob')`);
+
+      const { models } = plimsoll(pool, {
+        Simple: {
+          attributes: {
+            id:   { type:'number', autoIncrement:true },
+            name: { type:'string' },
+          },
+        },
+      });
+
+      Simple = models.Simple;
+    });
+
+    it('should support find()', async () => {
+      // expect
+      assert.deepEqual(await Simple.find().meta({ schemaName }), [ { id:1, name:'alice' }, { id:2, name:'bob' } ]);
+    });
+
+    it('should support findOne()', async () => {
+      // expect
+      // TODO insert meta() call
+      assert.deepEqual(await Simple.findOne({ name:'bob' }).meta({ schemaName }), { id:2, name:'bob' });
+    });
+
+    it('should support create()', async () => {
+      // when
+      // TODO insert meta() call
+      await Simple
+          .create({ name:'carol' })
+          .meta({ schemaName });
+
+      // then
+      const { rows } = await dbQuery('SELECT * FROM my_schema.Simple');
+      assert.deepEqual(rows, [ { id:1, name:'alice' }, { id:2, name:'bob' }, { id:3, name:'carol' } ]);
+    });
+
+    it('should support createEach()', async () => {
+      // when
+      await Simple
+          .createEach([ { name:'carol' }, { name:'dave' } ])
+          .meta({ schemaName });
+
+      // then
+      const { rows } = await dbQuery('SELECT * FROM my_schema.Simple');
+      assert.equal(rows.length, 4);
+      assert.deepEqual(rows, [ { id:1, name:'alice' }, { id:2, name:'bob' }, { id:3, name:'carol' }, { id:4, name:'dave' } ]);
+    });
+
+    it('should support update()', async () => {
+      // when
+      const matched = await Simple
+          .update({ name:'alice' })
+          .meta({ schemaName })
+          .set({ name:'carol' })
+          .fetch();
+
+      // then
+      assert.deepEqual(matched, [ { id:1, name:'carol' } ]);
+    });
+
+    it('should support updateOne()', async () => {
+      // when
+      const matched = await Simple
+          .updateOne({ name:'alice' })
+          .meta({ schemaName })
+          .set({ name:'carol' })
+          .fetch();
+
+      // then
+      assert.deepEqual(matched, { id:1, name:'carol' });
     });
 
   });

@@ -2,9 +2,10 @@ const cloneDeep = require('lodash/cloneDeep');
 
 const fmt = require('pg-format');
 const esc = {
-  col:   fmt.ident,
-  num:   fmt.literal,
-  table: fmt.ident,
+  col:    fmt.ident,
+  num:    fmt.literal,
+  schema: fmt.ident,
+  table:  fmt.ident,
 };
 
 const NOW = { NOW:'NOW' }; // placeholder for timestamp of statement execution
@@ -61,10 +62,10 @@ module.exports = (pool, models, defaultAttributes={}) => {
     }
   }
 
-  function sendNativeQuery(sql, args, opts) {
-    opts = { ...opts, intercepters:{} };
+  function sendNativeQuery(buildSql, args, opts) {
+    opts = { schemaName:'public', ...opts, intercepters:{} };
 
-    const returnable = { fetch, intercept, limit, populate, sort, then, usingConnection };
+    const returnable = { fetch, intercept, limit, meta, populate, sort, then, usingConnection };
     return returnable;
 
     function usingConnection(client) {
@@ -93,6 +94,15 @@ module.exports = (pool, models, defaultAttributes={}) => {
       return returnable;
     }
 
+    function meta(metaOpts) {
+      const keys = Object.keys(metaOpts);
+      if(!keys.every(k => k === 'schemaName')) {
+        throw new Error(`Currently the only meta property supported is schameName; found: ${keys}`);
+      }
+      opts.schemaName = metaOpts.schemaName;
+      return returnable;
+    }
+
     function populate(prop) {
       opts.populate = prop;
       return returnable;
@@ -104,6 +114,8 @@ module.exports = (pool, models, defaultAttributes={}) => {
     }
 
     async function then(resolve, reject) {
+      let sql = typeof buildSql === 'string' ? buildSql : buildSql(opts.schemaName);
+
       if(opts.fetch) {
         sql += ' RETURNING *';
       }
@@ -190,8 +202,8 @@ module.exports = (pool, models, defaultAttributes={}) => {
 
       const cols = Object.keys(props);
       const values = [];
-      return sendNativeQuery(`
-        INSERT INTO ${esc.table(Model.tableName)}
+      return sendNativeQuery(schemaName => `
+        INSERT INTO ${esc.schema(schemaName)}.${esc.table(Model.tableName)}
             ${buildColumnNamesQuery(cols)}
             VALUES ${buildValuesQuery(Model, cols, props, values)}
       `, values, { Model, single:true });
@@ -209,8 +221,8 @@ module.exports = (pool, models, defaultAttributes={}) => {
 
       const cols = Object.keys(propses[0]);
       const values = [];
-      return sendNativeQuery(`
-        INSERT INTO ${esc.table(Model.tableName)}
+      return sendNativeQuery(schemaName => `
+        INSERT INTO ${esc.schema(schemaName)}.${esc.table(Model.tableName)}
             ${buildColumnNamesQuery(cols)}
             VALUES ${propses.map(props => buildValuesQuery(Model, cols, props, values)).join(',\n                   ')}
       `, values, { Model });
@@ -220,9 +232,9 @@ module.exports = (pool, models, defaultAttributes={}) => {
     Model.find       = (options={}) => {
       const { select, criteria, orderBy, limit } = getFindCriteriaFrom(Model, options);
       const args = [];
-      return sendNativeQuery(`
+      return sendNativeQuery(schemaName => `
         SELECT ${select}
-          FROM ${esc.table(Model.tableName)}
+          FROM ${esc.schema(schemaName)}.${esc.table(Model.tableName)}
           ${buildWhereQuery(criteria, args)}
       `, args, { Model, returnRows:true, limit, orderBy });
     };
@@ -233,55 +245,65 @@ module.exports = (pool, models, defaultAttributes={}) => {
       // TODO check if this truly limits us to one result or not (preferably with a permanent test)
       // TODO optimise this when only ID is supplied
       // TODO optimise this when only a single unique column is supplied (like ID case, but more general)
-      return sendNativeQuery(`
+      return sendNativeQuery(schemaName => `
         SELECT ${select}
-          FROM ${esc.table(Model.tableName)}
+          FROM ${esc.schema(schemaName)}.${esc.table(Model.tableName)}
           WHERE id = (
             SELECT id
-              FROM ${esc.table(Model.tableName)}
+              FROM ${esc.schema(schemaName)}.${esc.table(Model.tableName)}
               ${buildWhereQuery(criteria, args)}
           )
       `, args, { Model, returnSingleRow:true, limit, orderBy });
     };
     Model.update = criteria => {
-      return {
-        set: props => {
-          props = withoutUnrecognisedProperties(Model, props);
-          props = withDefaultValues(Model, props);
-          const args = [];
-          const setQuery = buildSetQuery(Model, props, args);
-          if(!setQuery) return NO_OP([], { fetch:() => Model.find(criteria) });
+      let metaOpts;
+      function meta(opts) {
+        metaOpts = opts;
+        return { set };
+      }
+      function set(props) {
+        props = withoutUnrecognisedProperties(Model, props);
+        props = withDefaultValues(Model, props);
+        const args = [];
+        const setQuery = buildSetQuery(Model, props, args);
+        if(!setQuery) return NO_OP([], { fetch:() => Model.find(criteria) });
 
-          return sendNativeQuery(`
-            UPDATE ${esc.table(Model.tableName)}
-              SET ${setQuery}
-              ${buildWhereQuery(criteria, args)}
-          `, args, { Model });
-        },
-      };
+        const snq = sendNativeQuery(schemaName => `
+              UPDATE ${esc.schema(schemaName)}.${esc.table(Model.tableName)}
+                SET ${setQuery}
+                ${buildWhereQuery(criteria, args)}
+            `, args, { Model });
+        return metaOpts ? snq.meta(metaOpts) : snq;
+      }
+      return { meta, set };
     };
     Model.updateOne = criteria => {
       // TODO this may fail if there are no matches, but if following waterline
       // spec it should not: https://sailsjs.com/documentation/reference/waterline-orm/models/update-one
       // It's unclear if this should trigger update of autoUpdatedAt timestamps
-      return {
-        set: props => {
-          props = withoutUnrecognisedProperties(Model, props);
-          props = withDefaultValues(Model, props);
-          const args = [];
-          const setQuery = buildSetQuery(Model, props, args);
-          if(!setQuery) return Model.findOne(criteria);
-          return sendNativeQuery(`
-            UPDATE ${esc.table(Model.tableName)}
-              SET ${setQuery}
-              WHERE id = (
-                SELECT id
-                  FROM ${esc.table(Model.tableName)}
-                  ${buildWhereQuery(criteria, args)}
-              )
-          `, args, { Model, single:true, fetch:true });
-        },
-      };
+      let metaOpts;
+      function meta(opts) {
+        metaOpts = opts;
+        return { set };
+      }
+      function set(props) {
+        props = withoutUnrecognisedProperties(Model, props);
+        props = withDefaultValues(Model, props);
+        const args = [];
+        const setQuery = buildSetQuery(Model, props, args);
+        if(!setQuery) return Model.findOne(criteria);
+        const snq = sendNativeQuery(schemaName => `
+              UPDATE ${esc.schema(schemaName)}.${esc.table(Model.tableName)}
+                SET ${setQuery}
+                WHERE id = (
+                  SELECT id
+                    FROM ${esc.schema(schemaName)}.${esc.table(Model.tableName)}
+                    ${buildWhereQuery(criteria, args)}
+                )
+            `, args, { Model, single:true, fetch:true });
+        return metaOpts ? snq.meta(metaOpts) : snq;
+      }
+      return { meta, set };
     };
   }
 };
