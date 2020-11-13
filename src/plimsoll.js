@@ -8,7 +8,7 @@ const esc = {
   table:  fmt.ident,
 };
 
-const NOW = { NOW:'NOW' }; // placeholder for timestamp of statement execution
+const NOW = { NOW:'NOW' }; // placeholder for timestamp of query execution
 
 const NO_OP = (emptyValue, overrides) => {
   const returnable = {
