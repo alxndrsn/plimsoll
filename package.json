@@ -1,7 +1,7 @@
 {
   "name": "plimsoll",
   "description": "PostgreSQL adapter for Sails.js, drop-in replacement for Waterline",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "main": "src/sails-hook.js",
   "scripts": {
     "clean:docker": "docker-compose --log-level ERROR down -v --rmi local --remove-orphans",
