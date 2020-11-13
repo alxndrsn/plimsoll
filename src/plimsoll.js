@@ -228,7 +228,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
             VALUES ${propses.map(props => buildValuesQuery(Model, cols, props, values)).join(',\n                   ')}
       `, values, { Model });
     };
-    Model.destroy    = (options={}) => {
+    Model.destroy = (options={}) => {
       const { criteria, orderBy, limit } = getCriteriaFor('delete', Model, options);
       const args = [];
       return sendNativeQuery(schemaName => `
@@ -254,7 +254,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
           )
       `, args, { Model, returnSingleRow:true, limit, orderBy });
     };
-    Model.find       = (options={}) => {
+    Model.find = (options={}) => {
       const { select, criteria, orderBy, limit } = getCriteriaFor('select', Model, options);
       const args = [];
       return sendNativeQuery(schemaName => `
