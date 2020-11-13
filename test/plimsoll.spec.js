@@ -460,6 +460,75 @@ describe('plimsoll', () => {
       });
     });
 
+    describe('destroy()', () => {
+      it('should work without args', async () => {
+        // expect
+        assert.deepEqual(await Simple.destroy(), []);
+      });
+
+      it('should treat an empty object as DELETing whole table', async () => {
+        // expect
+        assert.deepEqual(await Simple.destroy({}), []);
+      });
+
+      it('should DELETE multiple rows', async () => {
+        // given
+        await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob')`);
+
+        // when
+        await Simple.destroy();
+
+        // then
+        const { rows } = await dbQuery('SELECT * FROM Simple');
+        assert.deepEqual(rows, []);
+      });
+    });
+
+    describe('destroyOne()', () => {
+      beforeEach(async () => {
+        await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob'), ('bob')`);
+      });
+
+      it('should have no effect if there is no match', async () => {
+        // when
+        await Simple.destroyOne({ name:'charlie' });
+
+        // then
+        const { rows } = await dbQuery('SELECT * FROM Simple');
+        assert.equal(rows.length, 3);
+        assert.deepEqual(rows, [ { id:1, name:'alice' }, { id:2, name:'bob' }, { id:3, name:'bob' } ]);
+      });
+
+      it('should delete the single match if there is one', async () => {
+        // when
+        await Simple.destroyOne({ name:'alice' });
+
+        // then
+        const { rows } = await dbQuery('SELECT * FROM Simple');
+        assert.equal(rows.length, 2);
+        assert.deepEqual(rows, [ { id:2, name:'bob' }, { id:3, name:'bob' } ]);
+      });
+
+      it('should throw if more than one match (no properties to match)', async () => {
+        // when
+        try {
+          await Simple.destroyOne();
+          throw 'unexpected';
+        } catch(err) {
+          assert.equal(err.code, 21000) // "more than one row returned by a subquery used as an expression"
+        }
+      });
+
+      it('should throw if more than one match (matched properties)', async () => {
+        // when
+        try {
+          await Simple.destroyOne({ name:'bob' });
+          throw 'unexpected';
+        } catch(err) {
+          assert.equal(err.code, 21000) // "more than one row returned by a subquery used as an expression"
+        }
+      });
+    });
   });
 
   describe('Model-based queries with schemaName provided in meta()', () => {

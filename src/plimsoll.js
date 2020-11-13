@@ -227,10 +227,34 @@ module.exports = (pool, models, defaultAttributes={}) => {
             VALUES ${propses.map(props => buildValuesQuery(Model, cols, props, values)).join(',\n                   ')}
       `, values, { Model });
     };
-    Model.destroy    = () => {};
-    Model.destroyOne = () => {};
+    Model.destroy    = (options={}) => {
+      const { criteria, orderBy, limit } = getCriteriaFor('delete', Model, options);
+      const args = [];
+      return sendNativeQuery(schemaName => `
+        DELETE
+          FROM ${esc.schema(schemaName)}.${esc.table(Model.tableName)}
+          ${buildWhereQuery(criteria, args)}
+      `, args, { Model, returnRows:true, limit, orderBy });
+    };
+    Model.destroyOne = (options={}) => {
+      const { criteria, orderBy, limit } = getCriteriaFor('delete', Model, options);
+      const args = [];
+      // from: https://dba.stackexchange.com/a/238287
+      // TODO check if this truly limits us to one result or not (preferably with a permanent test)
+      // TODO optimise this when only ID is supplied
+      // TODO optimise this when only a single unique column is supplied (like ID case, but more general)
+      return sendNativeQuery(schemaName => `
+        DELETE
+          FROM ${esc.schema(schemaName)}.${esc.table(Model.tableName)}
+          WHERE id = (
+            SELECT id
+              FROM ${esc.schema(schemaName)}.${esc.table(Model.tableName)}
+              ${buildWhereQuery(criteria, args)}
+          )
+      `, args, { Model, returnSingleRow:true, limit, orderBy });
+    };
     Model.find       = (options={}) => {
-      const { select, criteria, orderBy, limit } = getFindCriteriaFrom(Model, options);
+      const { select, criteria, orderBy, limit } = getCriteriaFor('select', Model, options);
       const args = [];
       return sendNativeQuery(schemaName => `
         SELECT ${select}
@@ -239,7 +263,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
       `, args, { Model, returnRows:true, limit, orderBy });
     };
     Model.findOne = (options={}) => {
-      const { select, criteria, orderBy, limit } = getFindCriteriaFrom(Model, options);
+      const { select, criteria, orderBy, limit } = getCriteriaFor('select', Model, options);
       const args = [];
       // from: https://dba.stackexchange.com/a/238287
       // TODO check if this truly limits us to one result or not (preferably with a permanent test)
@@ -520,7 +544,11 @@ function withDefaultValues(Model, props, { creating }={}) {
   return props;
 }
 
-function getFindCriteriaFrom(Model, options) {
+function getCriteriaFor(action, Model, options) {
+  if(action !== 'select' && action !== 'delete') {
+    throw new Error('Unknown action:', action);
+  }
+
   let select = '*', criteria, orderBy, limit;
 
   if(Object.keys(options).some(it => ['select'].includes(it))) {
@@ -541,6 +569,10 @@ function getFindCriteriaFrom(Model, options) {
     }
   } else {
     criteria = withoutUnrecognisedProperties(Model, options);
+  }
+
+  if(action === 'delete' && select !== '*') {
+    throw new Error('Cannot understand use of select()/{ select } in a destroy() call.');
   }
 
   return { select, criteria, orderBy, limit };
