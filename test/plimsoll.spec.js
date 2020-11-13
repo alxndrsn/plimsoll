@@ -590,6 +590,18 @@ describe('plimsoll', () => {
       assert.deepEqual(rows, [ { id:1, name:'alice' }, { id:2, name:'bob' }, { id:3, name:'carol' }, { id:4, name:'dave' } ]);
     });
 
+    it('should support createEach() when nothing is created', async () => {
+      // when
+      await Simple
+          .createEach([])
+          .meta({ schemaName });
+
+      // then
+      const { rows } = await dbQuery('SELECT * FROM my_schema.Simple');
+      assert.equal(rows.length, 2);
+      assert.deepEqual(rows, [ { id:1, name:'alice' }, { id:2, name:'bob' } ]);
+    });
+
     it('should support update()', async () => {
       // when
       const matched = await Simple

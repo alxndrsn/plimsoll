@@ -15,6 +15,7 @@ const NO_OP = (emptyValue, overrides) => {
     fetch:           () => returnable,
     intercept:       () => returnable,
     limit:           () => returnable,
+    meta:            () => returnable,
     populate:        () => returnable,
     sort:            () => returnable,
     usingConnection: () => returnable,
