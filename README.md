@@ -5,7 +5,7 @@ Plimsoll 👟🚢
 
 [![NPM](https://nodei.co/npm/plimsoll.png)](https://npmjs.org/package/plimsoll)
 
-Lightweight ORM for using [PostgreSQL](https://www.postgresql.org/) with [Sails.js](https://sailsjs.com/).
+Lightweight ORM for using [PostgreSQL](https://www.postgresql.org/) with [Sails.js](https://sailsjs.com/) and [Promises](https://promisesaplus.com/).
 
 This is an **experimental** drop-in replacement for all of the following [Sails.js](https://sailsjs.com/)/[`sails`](https://www.npmjs.com/package/sails) extensions:
 
