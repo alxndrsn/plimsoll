@@ -7,6 +7,7 @@
     "clean:docker": "docker-compose --log-level ERROR down -v --rmi local --remove-orphans",
     "docker:run": "yarn && yarn test",
     "lint": "eslint .",
+    "stryker": "stryker run test/stryker.conf.js",
     "test": "yarn lint && yarn test:mocha",
     "test:docker:pg9.5": "PG_VERSION=9.5 docker-compose run plimsoll-test",
     "test:docker:pg9.6": "PG_VERSION=9.6 docker-compose run plimsoll-test",
@@ -20,6 +21,8 @@
     "pg-format": "^1.0.4"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "^4.4.1",
+    "@stryker-mutator/mocha-runner": "^4.4.1",
     "chai": "^4.2.0",
     "eslint": "^7.9.0",
     "mocha": "^8.1.3",
