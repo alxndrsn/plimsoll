@@ -58,7 +58,7 @@ describe('plimsoll', () => {
   });
 
   describe('Model-based queries', () => {
-    let Audited, Simple, WithDefaults, WithRelationship;
+    let Audited, Restricted, Simple, WithDefaults, WithRelationship;
 
     beforeEach(async () => {
       await dbQuery('DROP SCHEMA IF EXISTS public CASCADE');
@@ -72,6 +72,8 @@ describe('plimsoll', () => {
 
       await dbQuery(`CREATE TABLE WithRelationship ( id SERIAL, name TEXT, my_simple INT )`);
 
+      await dbQuery(`CREATE TABLE Restricted ( id SERIAL, category TEXT )`);
+
       const { models } = plimsoll(pool, {
         Audited: {
           attributes: {
@@ -81,6 +83,12 @@ describe('plimsoll', () => {
             inserted_at: { type:'number', autoCreatedAt:true },
             updated_at:  { type:'number', autoUpdatedAt:true },
             _set_at:     { type:'number', autoUpdatedAt:true },
+          },
+        },
+        Restricted: {
+          attributes: {
+            id:       { type:'number', autoIncrement:true },
+            category: { type:'string', isIn:['A', 'B', 'C'] },
           },
         },
         Simple: {
@@ -108,6 +116,7 @@ describe('plimsoll', () => {
       });
 
       Audited          = models.Audited;
+      Restricted       = models.Restricted;
       Simple           = models.Simple;
       WithDefaults     = models.WithDefaults;
       WithRelationship = models.WithRelationship;
@@ -247,6 +256,21 @@ describe('plimsoll', () => {
           assert.equal(rows.length, 1);
           assert.deepInclude(rows[0], { id:1, name:'alice' });
           assertNumericFieldsEqual(rows[0], 'created_timestamp');
+        });
+      });
+
+      describe('for a restricted value', () => {
+        it('should accept a valid value', async () => {
+          await Restricted.create({ category:'A' });
+        });
+
+        it('should reject an invalid value', async () => {
+          try {
+            await Restricted.create({ category:'Z' });
+            assert.fail('Should have thrown');
+          } catch(err) {
+            assert.isOk(err);
+          }
         });
       });
     });
