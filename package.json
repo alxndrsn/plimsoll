@@ -7,7 +7,9 @@
     "clean:docker": "docker-compose --log-level ERROR down -v --rmi local --remove-orphans",
     "docker:run": "yarn && yarn test",
     "lint": "eslint .",
-    "stryker": "stryker run test/stryker.conf.js",
+    "report": "echo '\\n!!! Perhaps you want one of:\\n!!!'; jq -r '.scripts | keys | .[]' package.json | grep report: | sed 's/^/!!!   yarn /'",
+    "report:coverage": "nyc --reporter=html --reporter=text --report-dir=reports/coverage --temp-dir=build/.nyc-temp mocha && echo '\nHTML report generated in reports/coverage/index.html\n'",
+    "report:mutation": "stryker run test/stryker.conf.js",
     "test": "yarn lint && yarn test:mocha",
     "test:docker:pg9.5": "PG_VERSION=9.5 docker-compose run plimsoll-test",
     "test:docker:pg9.6": "PG_VERSION=9.6 docker-compose run plimsoll-test",
@@ -26,6 +28,7 @@
     "chai": "^4.2.0",
     "eslint": "^7.9.0",
     "mocha": "^8.1.3",
+    "nyc": "^15.1.0",
     "pg": "^8.3.3"
   },
   "peerDependencies": {
