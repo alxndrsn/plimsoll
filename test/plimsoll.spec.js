@@ -266,12 +266,25 @@ describe('plimsoll', () => {
         assert.deepEqual(await Simple.find(), [ { id:1, name:'alice' }, { id:2, name:'bob' } ]);
       });
 
-      it('should support !=', async () => {
-        // given
-        await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob')`);
+      describe('with comparators in criteria', () => {
+        it('should support !=', async () => {
+          // given
+          await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob')`);
 
-        // expect
-        assert.deepEqual(await Simple.find({ name:{ '!=':'alice' } }), [ { id:2, name:'bob' } ]);
+          // expect
+          assert.deepEqual(await Simple.find({ name:{ '!=':'alice' } }), [ { id:2, name:'bob' } ]);
+        });
+
+        it('should throw on unexpected comparators', async () => {
+          try {
+            // when
+            await Simple.find({ name:{ '!?':'alice' } })
+            assert.fail('should have thrown');
+          } catch(e) {
+            // then
+            assert.equal(e.message, 'Unrecognised op in criteria: !?');
+          }
+        });
       });
 
       describe('with sort()', () => {
