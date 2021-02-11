@@ -266,6 +266,14 @@ describe('plimsoll', () => {
         assert.deepEqual(await Simple.find(), [ { id:1, name:'alice' }, { id:2, name:'bob' } ]);
       });
 
+      it('should support !=', async () => {
+        // given
+        await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob')`);
+
+        // expect
+        assert.deepEqual(await Simple.find({ name:{ '!=':'alice' } }), [ { id:2, name:'bob' } ]);
+      });
+
       describe('with sort()', () => {
         beforeEach(async () => {
           // given
