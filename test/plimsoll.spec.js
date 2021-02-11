@@ -550,10 +550,12 @@ describe('plimsoll', () => {
 
         it('should reject an invalid value', async () => {
           try {
+            // when
             await Restricted.create({ category:'Z' });
             assert.fail('Should have thrown');
           } catch(err) {
-            assert.isOk(err);
+            // then
+            assert.equal(err.message, 'supplied value is not allowed'); // TODO make this error message more like the one from waterline(?), or at least include some detail
           }
         });
       });

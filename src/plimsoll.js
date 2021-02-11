@@ -199,6 +199,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
     });
 
     Model.create = props => {
+      validateProperties(Model, props);
       props = withoutUnrecognisedProperties(Model, props);
       props = withDefaultValues(Model, props, { creating:true });
 
@@ -212,6 +213,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
     };
     Model.createEach = propses => {
       propses = propses
+        .map(props => validateProperties(Model, props) || props)
         .map(props => withoutUnrecognisedProperties(Model, props))
         .map(props => withDefaultValues(Model, props, { creating:true }));
 
@@ -288,6 +290,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
         return { set };
       }
       function set(props) {
+        validateProperties(Model, props);
         props = withoutUnrecognisedProperties(Model, props);
         props = withDefaultValues(Model, props);
         const args = [];
@@ -313,6 +316,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
         return { set };
       }
       function set(props) {
+        validateProperties(Model, props);
         props = withoutUnrecognisedProperties(Model, props);
         props = withDefaultValues(Model, props);
         const args = [];
@@ -593,4 +597,16 @@ function withoutUnrecognisedProperties(Model, props) {
     }
   });
   return props;
+}
+
+function validateProperties(Model, props) {
+  for(const prop of Object.keys(props)) {
+    const attr = Model.attributes[prop];
+    if(attr && attr.validations) {
+      const { isIn } = attr.validations;
+      if(isIn && !isIn.includes(props[prop])) {
+        throw new Error('supplied value is not allowed');
+      }
+    }
+  }
 }
