@@ -98,7 +98,7 @@ module.exports = (pool, models, defaultAttributes={}) => {
     function meta(metaOpts) {
       const keys = Object.keys(metaOpts);
       if(!keys.every(k => k === 'schemaName')) {
-        throw new Error(`Currently the only meta property supported is schameName; found: ${keys}`);
+        throw new Error(`Currently the only meta property supported is schemaName; found: ${keys}`);
       }
       opts.schemaName = metaOpts.schemaName;
       return returnable;
