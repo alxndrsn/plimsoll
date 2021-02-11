@@ -141,6 +141,127 @@ describe('plimsoll', () => {
         assert.deepEqual(await Simple.find(), [ { id:1, name:'alice' }, { id:2, name:'bob' } ]);
       });
 
+      describe('with sort()', () => {
+        beforeEach(async () => {
+          // given
+          await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('charlie'), ('bob')`);
+        });
+
+        describe('for full list', () => {
+          it('should sort by id, ASC (by default)', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('id'), [ { id:1, name:'alice' }, { id:2, name:'charlie' }, { id:3, name:'bob' } ]);
+          });
+
+          it('should sort by id, ASC', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('id ASC'), [ { id:1, name:'alice' }, { id:2, name:'charlie' }, { id:3, name:'bob' } ]);
+          });
+
+          it('should sort by id, DESC', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('id DESC'), [ { id:3, name:'bob' }, { id:2, name:'charlie' }, { id:1, name:'alice' } ]);
+          });
+
+          it('should sort by name, ASC (by default)', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('name'), [ { id:1, name:'alice' }, { id:3, name:'bob' }, { id:2, name:'charlie' } ]);
+          });
+
+          it('should sort by name, ASC', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('name ASC'), [ { id:1, name:'alice' }, { id:3, name:'bob' }, { id:2, name:'charlie' } ]);
+          });
+
+          it('should sort by name, DESC', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('name DESC'), [ { id:2, name:'charlie' }, { id:3, name:'bob' }, { id:1, name:'alice' } ]);
+          });
+        });
+      });
+
+      describe('with limit()', () => {
+        beforeEach(async () => {
+          // given
+          await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('charlie'), ('bob')`);
+        });
+
+        it('should return expected result for LIMIT 0', async () => {
+          // expect
+          assert.deepEqual(await Simple.find().limit(0), []);
+        });
+
+        it('should return expected result for LIMIT 1', async () => {
+          // expect
+          assert.deepEqual(await Simple.find().limit(1), [ { id:1, name:'alice' } ]);
+        });
+
+        it('should return expected result for LIMIT 2', async () => {
+          // expect
+          assert.deepEqual(await Simple.find().limit(2), [ { id:1, name:'alice' }, { id:2, name:'charlie' } ]);
+        });
+
+        it('should return expected result for LIMIT 3', async () => {
+          // expect
+          assert.deepEqual(await Simple.find().limit(3), [ { id:1, name:'alice' }, { id:2, name:'charlie' }, { id:3, name:'bob' } ]);
+        });
+
+        it('should work if limit is greater than rows returned', async () => {
+          // expect
+          assert.deepEqual(await Simple.find().limit(4), [ { id:1, name:'alice' }, { id:2, name:'charlie' }, { id:3, name:'bob' } ]);
+        });
+
+        it('should not work for an unsafely-large integer', async () => {
+          try {
+            // when
+            await Simple.find().limit(Number.MAX_SAFE_INTEGER + 1);
+            assert.fail('should have thrown');
+          } catch(e) {
+            // then
+            assert.equal(e.message, 'Limit must be an integer.');
+          }
+        });
+      });
+
+      describe('with sort() and limit()', () => {
+        beforeEach(async () => {
+          // given
+          await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('charlie'), ('bob')`);
+        });
+
+        describe('for full list', () => {
+          it('should sort by id, ASC (by default)', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('id').limit(2), [ { id:1, name:'alice' }, { id:2, name:'charlie' } ]);
+          });
+
+          it('should sort by id, ASC', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('id ASC').limit(2), [ { id:1, name:'alice' }, { id:2, name:'charlie' } ]);
+          });
+
+          it('should sort by id, DESC', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('id DESC').limit(2), [ { id:3, name:'bob' }, { id:2, name:'charlie' } ]);
+          });
+
+          it('should sort by name, ASC (by default)', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('name').limit(2), [ { id:1, name:'alice' }, { id:3, name:'bob' } ]);
+          });
+
+          it('should sort by name, ASC', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('name ASC').limit(2), [ { id:1, name:'alice' }, { id:3, name:'bob' } ]);
+          });
+
+          it('should sort by name, DESC', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort('name DESC').limit(2), [ { id:2, name:'charlie' }, { id:3, name:'bob' } ]);
+          });
+        });
+      });
+
       it('should support model relationships without populate()', async () => {
         // given
         await dbQuery(`INSERT INTO Simple (name) VALUES ('alice'), ('bob')`);
@@ -527,6 +648,19 @@ describe('plimsoll', () => {
         // then
         const { rows } = await dbQuery('SELECT * FROM Simple');
         assert.deepEqual(rows, []);
+      });
+
+      it('should not support select() chainging', async () => {
+        // TODO it's actually quite reasonable to select fields when deleting,
+        // and can be implemented using RETURNING
+        try {
+          // when
+          assert.deepEqual(await Simple.destroy({ select:[ 'id' ] }));
+          assert.fail('should have thrown');
+        } catch(e) {
+          // then
+          assert.equal(e.message, 'Cannot understand use of select()/{ select } in a destroy() call.');
+        }
       });
     });
 
