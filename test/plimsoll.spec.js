@@ -177,6 +177,22 @@ describe('plimsoll', () => {
             // expect
             assert.deepEqual(await Simple.find().sort('name DESC'), [ { id:2, name:'charlie' }, { id:3, name:'bob' }, { id:1, name:'alice' } ]);
           });
+
+          it('should ignore extra spaces in the sort() string', async () => {
+            // expect
+            assert.deepEqual(await Simple.find().sort(' name     DESC '), [ { id:2, name:'charlie' }, { id:3, name:'bob' }, { id:1, name:'alice' } ]);
+          });
+
+          it('should throw an error for a nonsensical direction', async () => {
+            try {
+              // when
+              await Simple.find().sort('name FLAT');
+              assert.fail('should have thrown');
+            } catch(e) {
+              // then
+              assert.equal(e.message, 'Unexpected direction provided in ORDER BY clause: "FLAT"');
+            }
+          });
         });
       });
 

@@ -115,23 +115,24 @@ module.exports = (pool, models, defaultAttributes={}) => {
     }
 
     async function then(resolve, reject) {
-      let sql = typeof buildSql === 'string' ? buildSql : buildSql(opts.schemaName);
-
-      if(opts.fetch) {
-        sql += ' RETURNING *';
-      }
-      sql += buildOrderByQuery(opts.orderBy);
-      sql += buildLimitQuery(opts.limit);
-
-      if(args) {
-        // Substitute timestamps here so they are all identical for the same statement.
-        // N.B. statements in the same transaction may generate different timestamps.
-        const now = Date.now();
-        args = args.map(it => it === NOW ? now : it);
-      }
-
       let client;
+
       try {
+        let sql = typeof buildSql === 'string' ? buildSql : buildSql(opts.schemaName);
+
+        if(opts.fetch) {
+          sql += ' RETURNING *';
+        }
+        sql += buildOrderByQuery(opts.orderBy);
+        sql += buildLimitQuery(opts.limit);
+
+        if(args) {
+          // Substitute timestamps here so they are all identical for the same statement.
+          // N.B. statements in the same transaction may generate different timestamps.
+          const now = Date.now();
+          args = args.map(it => it === NOW ? now : it);
+        }
+
         client = opts.client || await pool.connect();
         const result = await client.query(sql, args);
 
@@ -430,7 +431,7 @@ function buildOrderByQuery(orderBy) {
     default: throw new Error(`Unexpected extras in ORDER BY clause: "${orderBy}"`);
   }
   if(dir && !['ASC', 'DESC'].includes(dir)) {
-    throw new Error(`Unexpected direction provided in ORDER BY clause: "${orderBy}"`);
+    throw new Error(`Unexpected direction provided in ORDER BY clause: "${dir}"`);
   }
   return ` ORDER BY ${esc.col(parts[0])} ${dir}`;
 }
