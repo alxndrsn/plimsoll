@@ -58,6 +58,7 @@ describe('plimsoll', () => {
   });
 
   describe('Model-based queries', () => {
+    let datastore;
     let Audited, Restricted, Simple, WithDefaults, WithRelationship;
 
     beforeEach(async () => {
@@ -74,7 +75,7 @@ describe('plimsoll', () => {
 
       await dbQuery(`CREATE TABLE Restricted ( id SERIAL, category TEXT )`);
 
-      const { models } = plimsoll(pool, {
+      datastore = plimsoll(pool, {
         Audited: {
           attributes: {
             id:          { type:'number', autoIncrement:true },
@@ -115,11 +116,135 @@ describe('plimsoll', () => {
         },
       });
 
-      Audited          = models.Audited;
-      Restricted       = models.Restricted;
-      Simple           = models.Simple;
-      WithDefaults     = models.WithDefaults;
-      WithRelationship = models.WithRelationship;
+      Audited          = datastore.models.Audited;
+      Restricted       = datastore.models.Restricted;
+      Simple           = datastore.models.Simple;
+      WithDefaults     = datastore.models.WithDefaults;
+      WithRelationship = datastore.models.WithRelationship;
+    });
+
+    describe('transaction()', () => {
+      it('should obey transaction boundaries', async () => {
+        const { sendNativeQuery, transaction } = datastore;
+
+        // given
+        await dbQuery(`INSERT INTO Simple (name) VALUES ('alice')`);
+        const checkpoints = [];
+
+        // when
+        await Promise.all([
+          transaction(async tx => {
+            checkpoints.push('1a');
+            const { rows } = await sendNativeQuery(`SELECT * FROM Simple WHERE id=1 FOR UPDATE`)
+                .usingConnection(tx);
+            checkpoints.push('1b');
+            const { name:oldName } = rows[0];
+            const name = oldName + '-bob';
+
+            return new Promise(resolve => {
+              setTimeout(async () => {
+                checkpoints.push('1c');
+                await Simple.update(1)
+                            .set({ name })
+                            .usingConnection(tx)
+                checkpoints.push('1d');
+                resolve();
+              }, 10);
+            });
+          }),
+          transaction(async tx => {
+            checkpoints.push('2a');
+            const { rows } = await sendNativeQuery(`SELECT * FROM Simple WHERE id=1 FOR UPDATE`)
+                .usingConnection(tx);
+            checkpoints.push('2b');
+            const { name:oldName } = rows[0];
+            const name = oldName + '-charlie';
+
+            return new Promise(resolve => {
+              setTimeout(async () => {
+                checkpoints.push('2c');
+                await Simple.update(1)
+                      .set({ name })
+                      .usingConnection(tx)
+                checkpoints.push('2d');
+                resolve();
+              }, 10);
+            });
+          }),
+        ]);
+
+        // then
+        const person = await Simple.findOne(1);
+        assert.equal(person.name, 'alice-bob-charlie');
+        assert.deepEqual(checkpoints, [ '1a', '1b', '2a', '1c', '1d',
+                                                    '2b', '2c', '2d' ]);
+      });
+
+      it('should rollback without affecting other transactions', async () => {
+        const { sendNativeQuery, transaction } = datastore;
+
+        // given
+        await dbQuery(`INSERT INTO Simple (name) VALUES ('alice')`);
+        const checkpoints = [];
+
+        // when
+        await Promise.all([
+          (async () => {
+            try {
+              await transaction(async tx => {
+                checkpoints.push('1a');
+                const { rows } = await sendNativeQuery(`SELECT * FROM Simple WHERE id=1 FOR UPDATE`)
+                    .usingConnection(tx);
+                checkpoints.push('1b');
+                const { name:oldName } = rows[0];
+                const name = oldName + '-bob';
+
+                await new Promise(resolve => {
+                  setTimeout(async () => {
+                    checkpoints.push('1c');
+                    await Simple.update(1)
+                                .set({ name })
+                                .usingConnection(tx)
+                    checkpoints.push('1d');
+                    resolve();
+                  }, 10);
+                });
+
+                throw new Error('please rollback');
+              });
+            } catch(err) {
+              if(err.message !== 'please rollback') {
+                throw err;
+              }
+            }
+          })(),
+          transaction(async tx => {
+            checkpoints.push('2a');
+            const { rows } = await sendNativeQuery(`SELECT * FROM Simple WHERE id=1 FOR UPDATE`)
+                .usingConnection(tx);
+            checkpoints.push('2b');
+            const { name:oldName } = rows[0];
+            const name = oldName + '-charlie';
+
+            return new Promise(resolve => {
+              setTimeout(async () => {
+                checkpoints.push('2c');
+                await Simple.update(1)
+                      .set({ name })
+                      .usingConnection(tx)
+                checkpoints.push('2d');
+                resolve();
+              }, 10);
+            });
+          }),
+        ]);
+
+        // then
+        const person = await Simple.findOne(1);
+        assert.equal(person.name, 'alice-charlie');
+        assert.deepEqual(checkpoints, [ '1a', '2a', '1b', '1c', '1d', // TODO order of 1b & 2a seems to be non-deterministic, or at least change depending on which other tests are run
+                                                    '2b', '2c', '2d' ]);
+      });
     });
 
     describe('find()', () => {
