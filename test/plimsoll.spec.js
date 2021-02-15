@@ -124,12 +124,28 @@ describe('plimsoll', () => {
     });
 
     describe('transaction()', () => {
+      let checkpoints;
+      beforeEach(() => {
+        checkpoints = [];
+      });
+
+      function waitForCheckpoint(cp) {
+        return new Promise((resolve, reject) => {
+          const waitTimeout = Date.now() + 1000;
+          function doCheck() {
+            if(checkpoints.includes(cp)) resolve();
+            else if(Date.now() > waitTimeout) reject(`timed out waiting for checkpoint: ${cp}`);
+            else setTimeout(doCheck, 5);
+          }
+          doCheck();
+        });
+      }
+
       it('should obey transaction boundaries', async () => {
         const { sendNativeQuery, transaction } = datastore;
 
         // given
         await dbQuery(`INSERT INTO Simple (name) VALUES ('alice')`);
-        const checkpoints = [];
 
         // when
         await Promise.all([
@@ -138,6 +154,9 @@ describe('plimsoll', () => {
             const { rows } = await sendNativeQuery(`SELECT * FROM Simple WHERE id=1 FOR UPDATE`)
                 .usingConnection(tx);
             checkpoints.push('1b');
+
+            await waitForCheckpoint('2a'); // don't continue with update until we know the other tx is blocked
+
             const { name:oldName } = rows[0];
             const name = oldName + '-bob';
 
@@ -153,6 +172,8 @@ describe('plimsoll', () => {
             });
           }),
           transaction(async tx => {
+            await waitForCheckpoint('1b'); // don't try to select the row until the other tx has definitely done so
+
             checkpoints.push('2a');
             const { rows } = await sendNativeQuery(`SELECT * FROM Simple WHERE id=1 FOR UPDATE`)
                 .usingConnection(tx);
@@ -185,7 +206,6 @@ describe('plimsoll', () => {
 
         // given
         await dbQuery(`INSERT INTO Simple (name) VALUES ('alice')`);
-        const checkpoints = [];
 
         // when
         await Promise.all([
@@ -196,6 +216,9 @@ describe('plimsoll', () => {
                 const { rows } = await sendNativeQuery(`SELECT * FROM Simple WHERE id=1 FOR UPDATE`)
                     .usingConnection(tx);
                 checkpoints.push('1b');
+
+                await waitForCheckpoint('2a'); // don't continue with update until we know the other tx is blocked
+
                 const { name:oldName } = rows[0];
                 const name = oldName + '-bob';
 
@@ -219,6 +242,8 @@ describe('plimsoll', () => {
             }
           })(),
           transaction(async tx => {
+            await waitForCheckpoint('1b'); // don't try to select the row until the other tx has definitely done so
+
             checkpoints.push('2a');
             const { rows } = await sendNativeQuery(`SELECT * FROM Simple WHERE id=1 FOR UPDATE`)
                 .usingConnection(tx);
@@ -242,7 +267,7 @@ describe('plimsoll', () => {
         // then
         const person = await Simple.findOne(1);
         assert.equal(person.name, 'alice-charlie');
-        assert.deepEqual(checkpoints, [ '1a', '2a', '1b', '1c', '1d', // TODO order of 1b & 2a seems to be non-deterministic, or at least change depending on which other tests are run
+        assert.deepEqual(checkpoints, [ '1a', '1b', '2a', '1c', '1d',
                                                     '2b', '2c', '2d' ]);
       });
     });
