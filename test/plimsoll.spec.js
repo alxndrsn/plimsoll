@@ -622,12 +622,26 @@ describe('plimsoll', () => {
           assert.isFunction(creator.then);
         });
 
-        it('should allow transactions', async () => {
-          // given
-          const creator = Simple.createEach([]);
+        [
+          'fetch',
+          'intercept',
+          'limit',
+          'meta',
+          'populate',
+          'sort',
+          'usingConnection',
+        ].forEach(fnName => {
+          // This test is a bit ugly, because it relies on details of the current
+          // implementation.  Mainly to improve code metrics o_O
+          it(`should return no-op function '${fnName}()'`, () => {
+            // given
+            const ret = Simple.createEach([]);
+            const fn = ret[fnName];
 
-          // expect
-          assert.isFunction(creator.usingConnection);
+            // expect
+            assert.isFunction(fn);
+            assert.equal(fn(), ret);
+          });
         });
       });
 
