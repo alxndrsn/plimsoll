@@ -411,7 +411,15 @@ function buildValuesQuery(Model, cols, props, values) {
 
   cols.forEach(k => {
     let v = props[k];
-    values.push(v);
+    if(Model.attributes[k].type === 'json') {
+      if(typeof v !== 'object') {
+        throw new Error(`supplied value ('${v}') is not valid json for column '${k}'`);
+      }
+
+      values.push(JSON.stringify(v));
+    } else {
+      values.push(v);
+    }
     q.push(`$${values.length}`);
   });
 
@@ -489,7 +497,14 @@ function withSelectedValuesCast(Model, row) {
     Object.entries(row)
       .forEach(([ k, v ]) => {
         if(v === undefined || v === null) {
-          const { allowNull, type } = Model.attributes[k];
+          const { attributes } = Model;
+          if(!attributes[k]) {
+            // > This is a column which exists on the database (likely not dropeed) but isn't part
+            // > of the Models attributes. Safe to ignore it and not do anything with it.
+            return;
+          }
+
+          const { allowNull, type } = attributes[k];
           if(!allowNull) {
             // > The string, number, and boolean data types do not accept null as a value when creating or updating
             // > records. In order to allow a null value to be set, you can toggle the allowNull flag on the

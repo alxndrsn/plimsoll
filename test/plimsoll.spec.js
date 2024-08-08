@@ -59,7 +59,7 @@ describe('plimsoll', () => {
 
   describe('Model-based queries', () => {
     let datastore;
-    let Audited, Restricted, Simple, WithDefaults, WithRelationship;
+    let Audited, Restricted, Simple, WithDefaults, WithJsonbColumn, WithRelationship;
 
     beforeEach(async () => {
       await dbQuery('DROP SCHEMA IF EXISTS public CASCADE');
@@ -70,6 +70,8 @@ describe('plimsoll', () => {
       await dbQuery(`CREATE TABLE Audited ( id SERIAL, name TEXT, created_at BIGINT, inserted_at BIGINT, updated_at BIGINT, _set_at BIGINT )`);
 
       await dbQuery(`CREATE TABLE WithDefaults ( id SERIAL, str_no_def TEXT, str_def TEXT, num_no_def INT, num_def INT )`);
+
+      await dbQuery(`CREATE TABLE WithJsonbColumn ( id SERIAL, json_column JSONB )`);
 
       await dbQuery(`CREATE TABLE WithRelationship ( id SERIAL, name TEXT, my_simple INT )`);
 
@@ -107,6 +109,12 @@ describe('plimsoll', () => {
             num_def:    { type:'number', defaultsTo:'77' },
           },
         },
+        WithJsonbColumn: {
+          attributes: {
+            id:          { type:'number', autoIncrement:true },
+            json_column: { type:'json', columnType:'jsonb' },
+          },
+        },
         WithRelationship: {
           attributes: {
             id:        { type:'number', autoIncrement:true },
@@ -120,6 +128,7 @@ describe('plimsoll', () => {
       Restricted       = datastore.models.Restricted;
       Simple           = datastore.models.Simple;
       WithDefaults     = datastore.models.WithDefaults;
+      WithJsonbColumn  = datastore.models.WithJsonbColumn;
       WithRelationship = datastore.models.WithRelationship;
     });
 
@@ -602,6 +611,23 @@ describe('plimsoll', () => {
           } catch(err) {
             // then
             assert.equal(err.message, 'supplied value is not allowed'); // TODO make this error message more like the one from waterline(?), or at least include some detail
+          }
+        });
+      });
+
+      describe('for a json column', () => {
+        it('should accept a valid json value', async () => {
+          await WithJsonbColumn.create({ json_column:{ valid:true } });
+        });
+
+        it('should reject non json values', async () => {
+          try {
+            // when
+            await WithJsonbColumn.create({ json_column:'invalid' });
+            assert.fail('Should have thrown');
+          } catch(err) {
+            // then
+            assert.equal(err.message, `supplied value ('invalid') is not valid json for column 'json_column'`);
           }
         });
       });
