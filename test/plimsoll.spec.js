@@ -616,19 +616,19 @@ describe('plimsoll', () => {
       });
 
       describe('for a json column', () => {
-        it('should accept a valid json value', async () => {
-          await WithJsonbColumn.create({ json_column:{ valid:true } });
-        });
-
-        it('should reject non json values', async () => {
-          try {
+        [
+          1,
+          'a',
+          [1, 'a', 2, 'b'],
+          { a:1, b:2 },
+        ].forEach(value => {
+          it(`should handle value of ${JSON.stringify(value)}`, async () => {
             // when
-            await WithJsonbColumn.create({ json_column:'invalid' });
-            assert.fail('Should have thrown');
-          } catch(err) {
+            await WithJsonbColumn.create({ json_column:value });
+
             // then
-            assert.equal(err.message, `supplied value ('invalid') is not valid json for column 'json_column'`);
-          }
+            assert.deepEqual(await WithJsonbColumn.find(), [{ id:1, json_column:value }]);
+          });
         });
       });
     });

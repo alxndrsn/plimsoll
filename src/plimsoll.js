@@ -412,10 +412,6 @@ function buildValuesQuery(Model, cols, props, values) {
   cols.forEach(k => {
     let v = props[k];
     if(Model.attributes[k].type === 'json') {
-      if(typeof v !== 'object') {
-        throw new Error(`supplied value ('${v}') is not valid json for column '${k}'`);
-      }
-
       values.push(JSON.stringify(v));
     } else {
       values.push(v);
