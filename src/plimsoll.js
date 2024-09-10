@@ -411,7 +411,11 @@ function buildValuesQuery(Model, cols, props, values) {
 
   cols.forEach(k => {
     let v = props[k];
-    values.push(v);
+    if(Model.attributes[k].type === 'json') {
+      values.push(JSON.stringify(v));
+    } else {
+      values.push(v);
+    }
     q.push(`$${values.length}`);
   });
 
