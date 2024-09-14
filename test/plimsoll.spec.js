@@ -59,7 +59,7 @@ describe('plimsoll', () => {
 
   describe('Model-based queries', () => {
     let datastore;
-    let Audited, Restricted, Simple, WithDefaults, WithJsonbColumn, WithRelationship;
+    let Audited, Restricted, Simple, WithDefaults, WithJsonbColumn, WithMissingAttributes, WithRelationship;
 
     beforeEach(async () => {
       await dbQuery('DROP SCHEMA IF EXISTS public CASCADE');
@@ -72,6 +72,8 @@ describe('plimsoll', () => {
       await dbQuery(`CREATE TABLE WithDefaults ( id SERIAL, str_no_def TEXT, str_def TEXT, num_no_def INT, num_def INT )`);
 
       await dbQuery(`CREATE TABLE WithJsonbColumn ( id SERIAL, json_column JSONB )`);
+
+      await dbQuery(`CREATE TABLE WithMissingAttributes (id SERIAL, num INT, name TEXT)`);
 
       await dbQuery(`CREATE TABLE WithRelationship ( id SERIAL, name TEXT, my_simple INT )`);
 
@@ -115,6 +117,17 @@ describe('plimsoll', () => {
             json_column: { type:'json', columnType:'jsonb' },
           },
         },
+        WithMissingAttributes: {
+          attributes: {
+            id:   { type:'number', autoIncrement:true },
+            /**
+             * An attribute which was previously defined but was removed from
+             * the attributes but has not been dropped from the database..
+             *   num: { type:'number', allowNull:true },
+             */
+            name: { type:'string' },
+          },
+        },
         WithRelationship: {
           attributes: {
             id:        { type:'number', autoIncrement:true },
@@ -124,12 +137,13 @@ describe('plimsoll', () => {
         },
       });
 
-      Audited          = datastore.models.Audited;
-      Restricted       = datastore.models.Restricted;
-      Simple           = datastore.models.Simple;
-      WithDefaults     = datastore.models.WithDefaults;
-      WithJsonbColumn  = datastore.models.WithJsonbColumn;
-      WithRelationship = datastore.models.WithRelationship;
+      Audited               = datastore.models.Audited;
+      Restricted            = datastore.models.Restricted;
+      Simple                = datastore.models.Simple;
+      WithDefaults          = datastore.models.WithDefaults;
+      WithJsonbColumn       = datastore.models.WithJsonbColumn;
+      WithMissingAttributes = datastore.models.WithMissingAttributes;
+      WithRelationship      = datastore.models.WithRelationship;
     });
 
     describe('transaction()', () => {
@@ -298,6 +312,14 @@ describe('plimsoll', () => {
 
         // expect
         assert.deepEqual(await Simple.find(), [ { id:1, name:'alice' }, { id:2, name:'bob' } ]);
+      });
+
+      it('should not cast row value when missing in Model.attributes', async () => {
+        // given
+        await dbQuery(`INSERT INTO WithMissingAttributes (name) VALUES ('alice')`);
+
+        // expect
+        assert.deepEqual(await WithMissingAttributes.find(), [ { id:1, name:'alice', num:null } ]);
       });
 
       describe('with comparators in criteria', () => {
@@ -629,6 +651,16 @@ describe('plimsoll', () => {
             // then
             assert.deepEqual(await WithJsonbColumn.find(), [{ id:1, json_column:value }]);
           });
+        });
+      });
+
+      describe('for a column missing in Model.attributes', () => {
+        it('should ignore setting the column value', async () => {
+          // when
+          await WithMissingAttributes.create({ name:'alice', num:1 });
+
+          // then
+          assert.deepEqual(await WithMissingAttributes.find(), [{ id:1, name:'alice', num:null }]);
         });
       });
     });
